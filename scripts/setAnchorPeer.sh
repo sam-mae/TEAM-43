@@ -38,7 +38,7 @@ createAnchorPeerUpdate() {
     HOST="peer0.org5.example.com"
     PORT=4051
   elif [ $ORG -eq 6 ]; then
-    HOST="peer0.org3.example.com"
+    HOST="peer0.org6.example.com"
     PORT=3051
   elif [ $ORG -eq 7 ]; then
     HOST="peer0.org7.example.com"
