@@ -289,8 +289,7 @@ function createOrgs() {
     infoln "Generating certificates using Fabric CA"
     ${CONTAINER_CLI_COMPOSE} -f compose/$COMPOSE_FILE_CA -f compose/$CONTAINER_CLI/${CONTAINER_CLI}-$COMPOSE_FILE_CA up -d 2>&1
 
-    . organizations/fabric-ca/registerEnroll.sh
-
+    .   organizations/fabric-ca/registerEnroll.sh
     while :
     do
       if [ ! -f "organizations/fabric-ca/org1/tls-cert.pem" ]; then
@@ -380,21 +379,23 @@ function createChannel() {
   # Bring up the network if it is not already up.
   bringUpNetwork="false"
 
-  local bft_true=$1
+  local bft_true=$1 # 함수에 전달된 첫 번째 인수를 bft_true 변수에 저장, BFT(비잔틴 장애 허용) 설정 여부를 나타낼 수 있음
 
-  if ! $CONTAINER_CLI info > /dev/null 2>&1 ; then
+  if ! $CONTAINER_CLI info > /dev/null 2>&1 ; then # Docker(또는 Podman) 네트워크 상태를 확인
     fatalln "$CONTAINER_CLI network is required to be running to create a channel"
   fi
 
   # check if all containers are present
-  CONTAINERS=($($CONTAINER_CLI ps | grep hyperledger/ | awk '{print $2}'))
-  len=$(echo ${#CONTAINERS[@]})
+  CONTAINERS=($($CONTAINER_CLI ps | grep hyperledger/ | awk '{print $2}')) # 현재 실행 중인 모든 Hyperledger 관련 컨테이너의 이름을 배열에 저장
+  len=$(echo ${#CONTAINERS[@]}) # 배열의 길이를 계산하여 실행 중인 Hyperledger 컨테이너의 수를 len 변수에 저장
 
+  # 실행 중인 컨테이너가 4개 이상이고 organizations/peerOrganizations 디렉터리가 존재하지 않으면:
   if [[ $len -ge 4 ]] && [[ ! -d "organizations/peerOrganizations" ]]; then
     echo "Bringing network down to sync certs with containers"
     networkDown
   fi
 
+  # 실행 중인 컨테이너가 4개 미만이거나 organizations/peerOrganizations 디렉터리가 존재하지 않으면 bringUpNetwork를 true로 설정
   [[ $len -lt 4 ]] || [[ ! -d "organizations/peerOrganizations" ]] && bringUpNetwork="true" || echo "Network Running Already"
 
   if [ $bringUpNetwork == "true"  ]; then
@@ -402,12 +403,56 @@ function createChannel() {
     networkUp
   fi
 
+  if [ -z "$CHANNEL_NAME" ]; then
+    errorln "Channel name is required."
+    exit 1
+  fi
+
+  if [ "$CHANNEL_NAME" == "material-supply-channel" ]; then
+    createRawMaterialSupplyChannel
+  elif [ "$CHANNEL_NAME" == "battery-ev-channel" ]; then
+    createBatteryEvChannel
+  elif [ "$CHANNEL_NAME" == "battery-update-channel" ]; then
+    createBatteryUpdateChannel
+  elif [ "$CHANNEL_NAME" == "recycled-material-extraction-channel" ]; then
+    createRecycledMaterialExtractionChannel
+  elif [ "$CHANNEL_NAME" == "recycled-material-supply-channel" ]; then
+    createRecycledMaterialSupplyChannel
+  elif [ "$CHANNEL_NAME" == "public-channel" ]; then
+    createPublicChannel
+  else
+    errorln "Unknown channel name."
+    exit 1
+  fi
+
   # now run the script that creates a channel. This script uses configtxgen once
   # to create the channel creation transaction and the anchor peer updates.
-  scripts/createChannel.sh $CHANNEL_NAME $CLI_DELAY $MAX_RETRY $VERBOSE $bft_true
+  # !!!!!!!!!!!!!! scripts/createChannel.sh $CHANNEL_NAME $CLI_DELAY $MAX_RETRY $VERBOSE $bft_true
+}
+####### 함수 추가
+function createRawMaterialSupplyChannel() {
+  scripts/createChannel.sh material-supply-channel $CLI_DELAY $MAX_RETRY $VERBOSE
 }
 
+function createBatteryEvChannel() {
+  scripts/createChannel.sh battery-ev-channel $CLI_DELAY $MAX_RETRY $VERBOSE
+}
 
+function createBatteryUpdateChannel() {
+  scripts/createChannel.sh battery-update-channel $CLI_DELAY $MAX_RETRY $VERBOSE
+}
+
+function createRecycledMaterialExtractionChannel() {
+  scripts/createChannel.sh recycled-material-extraction-channel $CLI_DELAY $MAX_RETRY $VERBOSE
+}
+
+function createRecycledMaterialSupplyChannel() {
+  scripts/createChannel.sh recycled-material-supply-channel $CLI_DELAY $MAX_RETRY $VERBOSE
+}
+
+function createPublicChannel() {
+  scripts/createChannel.sh public-channel $CLI_DELAY $MAX_RETRY $VERBOSE
+}
 ## Call the script to deploy a chaincode to the channel
 function deployCC() {
   scripts/deployCC.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
