@@ -1,0 +1,9 @@
+{
+    "name": "api-server",
+    "version": "1.0.0",
+    "dependencies": {
+        "express": "^4.17.1",
+        "fabric-ca-client": "^2.2.20",
+        "fabric-network": "^2.2.11"
+    }
+}
