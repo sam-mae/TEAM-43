@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
@@ -16,23 +15,49 @@ type RawMaterialChaincode struct {
 type RawMaterial struct {
 	MaterialID string `json:"materialID"`
 	SupplierID string `json:"supplierID"`
+	Symbol     string `json:"symbol"`
 	Quantity   int    `json:"quantity"`
 	Status     string `json:"status"`
 	VerifiedBy string `json:"verifiedBy"`
 	Timestamp  string `json:"timestamp"`
 }
 
-// RegisterRawMaterial registers a new raw material on the ledger with pending status
-func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, materialID string, supplierID string, quantity string) error {
-	quantityInt, err := strconv.Atoi(quantity)
+// 만약 동일한 materialID가 존재하면 수량을 증가시킴
+func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, materialID string, supplierID string, symbol string, quantity int) error {
+	// 먼저 원자재가 기존에 존재하는지 확인
+	existingRawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
-		return fmt.Errorf("failed to convert quantity to integer: %v", err)
+		return fmt.Errorf("failed to read raw material: %v", err)
 	}
 
+	// 원자재가 존재하면 수량을 증가시킴
+	if existingRawMaterialAsBytes != nil {
+		existingRawMaterial := new(RawMaterial)
+		err := json.Unmarshal(existingRawMaterialAsBytes, existingRawMaterial)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal raw material: %v", err)
+		}
+
+		// 수량을 증가시키고 업데이트
+		existingRawMaterial.Quantity += quantity
+		existingRawMaterial.Timestamp = time.Now().Format(time.RFC3339)
+
+		updatedRawMaterialAsBytes, err := json.Marshal(existingRawMaterial)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated raw material: %v", err)
+		}
+
+		return ctx.GetStub().PutState(materialID, updatedRawMaterialAsBytes)
+	}
+
+	// 원자재가 존재하지 않으면 새로운 원자재 등록
 	rawMaterial := RawMaterial{
 		MaterialID: materialID,
 		SupplierID: supplierID,
-		Quantity:   quantityInt,
+		Symbol:     symbol,
+		Quantity:   quantity,
+		Status:     "available",
+		Timestamp:  time.Now().Format(time.RFC3339),
 	}
 
 	rawMaterialAsBytes, err := json.Marshal(rawMaterial)
@@ -40,24 +65,16 @@ func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionCo
 		return fmt.Errorf("failed to marshal raw material: %v", err)
 	}
 
+	// 새 원자재 등록
 	return ctx.GetStub().PutState(materialID, rawMaterialAsBytes)
 }
 
-// VerifyRawMaterial verifies the raw material and updates its status
-func (s *RawMaterialChaincode) VerifyRawMaterial(ctx contractapi.TransactionContextInterface, materialID string, verifierID string) error {
-	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
-	if err != nil {
-		return fmt.Errorf("failed to get MSP ID: %v", err)
-	}
-	if clientMSPID != "Org7MSP" {
-		return fmt.Errorf("only Org7 is authorized to verify raw materials")
-	}
-
+// UpdateRawMaterialQuantity 업데이트 함수
+func (s *RawMaterialChaincode) UpdateRawMaterialQuantity(ctx contractapi.TransactionContextInterface, materialID string, changeAmount int) error {
 	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
 		return fmt.Errorf("failed to read raw material: %v", err)
 	}
-
 	if rawMaterialAsBytes == nil {
 		return fmt.Errorf("raw material not found: %s", materialID)
 	}
@@ -68,47 +85,25 @@ func (s *RawMaterialChaincode) VerifyRawMaterial(ctx contractapi.TransactionCont
 		return fmt.Errorf("failed to unmarshal raw material: %v", err)
 	}
 
-	rawMaterial.VerifiedBy = verifierID
-	rawMaterial.Status = "verified"
+	if rawMaterial.Quantity < -changeAmount {
+		return fmt.Errorf("not enough raw material quantity")
+	}
+
+	rawMaterial.Quantity += changeAmount
+	if rawMaterial.Quantity == 0 {
+		rawMaterial.Status = "used"
+	}
 	rawMaterial.Timestamp = time.Now().Format(time.RFC3339)
 
 	rawMaterialAsBytes, err = json.Marshal(rawMaterial)
 	if err != nil {
-		return fmt.Errorf("failed to marshal raw material: %v", err)
+		return fmt.Errorf("failed to marshal updated raw material: %v", err)
 	}
 
 	return ctx.GetStub().PutState(materialID, rawMaterialAsBytes)
 }
 
-// UpdateRawMaterialQuantity updates the quantity of the raw material on the ledger
-func (s *RawMaterialChaincode) UpdateRawMaterialQuantity(ctx contractapi.TransactionContextInterface, materialID string, newQuantity int) error {
-	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
-	if err != nil {
-		return fmt.Errorf("failed to read raw material: %v", err)
-	}
-
-	if rawMaterialAsBytes == nil {
-		return fmt.Errorf("raw material not found: %s", materialID)
-	}
-
-	rawMaterial := new(RawMaterial)
-	err = json.Unmarshal(rawMaterialAsBytes, rawMaterial)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal raw material: %v", err)
-	}
-
-	rawMaterial.Quantity = newQuantity
-	rawMaterial.Timestamp = time.Now().Format(time.RFC3339)
-
-	rawMaterialAsBytes, err = json.Marshal(rawMaterial)
-	if err != nil {
-		return fmt.Errorf("failed to marshal raw material: %v", err)
-	}
-
-	return ctx.GetStub().PutState(materialID, rawMaterialAsBytes)
-}
-
-// QueryRawMaterial queries the raw material data from the ledger
+// QueryRawMaterial 함수
 func (s *RawMaterialChaincode) QueryRawMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
 	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
@@ -128,10 +123,37 @@ func (s *RawMaterialChaincode) QueryRawMaterial(ctx contractapi.TransactionConte
 	return rawMaterial, nil
 }
 
+// QueryAllRawMaterials returns all raw materials in the ledger
+func (s *RawMaterialChaincode) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all raw materials: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var rawMaterials []RawMaterial
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var rawMaterial RawMaterial
+		err = json.Unmarshal(queryResponse.Value, &rawMaterial)
+		if err != nil {
+			return nil, err
+		}
+
+		rawMaterials = append(rawMaterials, rawMaterial)
+	}
+
+	return rawMaterials, nil
+}
+
 func main() {
 	chaincode, err := contractapi.NewChaincode(new(RawMaterialChaincode))
 	if err != nil {
-		fmt.Printf("Error create raw material chaincode: %v\n", err)
+		fmt.Printf("Error creating raw material chaincode: %v\n", err)
 		return
 	}
 

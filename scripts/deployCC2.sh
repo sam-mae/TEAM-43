@@ -2,7 +2,7 @@
 
 source scripts/utils.sh
 
-CHANNEL_NAME=${1:-"battery-ev-channel"}
+CHANNEL_NAME=${1:-"battery-ev-channel"}  # 배포할 채널 이름을 "battery-ev-channel"로 설정
 CC_NAME=${2}
 CC_SRC_PATH=${3}
 CC_SRC_LANGUAGE=${4}
@@ -73,7 +73,7 @@ checkPrereqs
 
 PACKAGE_ID=$(peer lifecycle chaincode calculatepackageid ${CC_NAME}.tar.gz)
 
-## Install chaincode on peer0.org1 and peer0.org2
+## Install chaincode on peer0.org2, peer0.org3, peer0.org7
 infoln "Installing chaincode on peer0.org2..."
 installChaincode 2
 infoln "Install chaincode on peer0.org3..."
@@ -86,30 +86,26 @@ resolveSequence
 ## query whether the chaincode is installed
 queryInstalled 2
 
-## approve the definition for org1
+## approve the definition for org2
 approveForMyOrg 2
 
 ## check whether the chaincode definition is ready to be committed
-## expect org1 to have approved and org2 not to
-checkCommitReadiness 2
-checkCommitReadiness 3
-checkCommitReadiness 7
+## expect org2 to have approved and org3/org7 not to
+checkCommitReadiness 2 "\"Org2MSP\": true" "\"Org3MSP\": false" "\"Org7MSP\": false"
+checkCommitReadiness 3 "\"Org2MSP\": true" "\"Org3MSP\": false" "\"Org7MSP\": false"
+checkCommitReadiness 7 "\"Org2MSP\": true" "\"Org3MSP\": false" "\"Org7MSP\": false"
 
-## now approve also for org2
+## now approve also for org3 and org7
 approveForMyOrg 3
+approveForMyOrg 7
 
 ## check whether the chaincode definition is ready to be committed
-## expect them both to have approved
-checkCommitReadiness 2
-checkCommitReadiness 3
-checkCommitReadiness 7
+## expect all organizations to have approved
+checkCommitReadiness 2 "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org7MSP\": true"
+checkCommitReadiness 3 "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org7MSP\": true"
+checkCommitReadiness 7 "\"Org2MSP\": true" "\"Org3MSP\": true" "\"Org7MSP\": true"
 
-approveForMyOrg 7
-checkCommitReadiness 2
-checkCommitReadiness 3
-checkCommitReadiness 7
-
-## now that we know for sure both orgs have approved, commit the definition
+## now that we know for sure all orgs have approved, commit the definition
 commitChaincodeDefinition 2 3 7
 
 ## query on both orgs to see that the definition committed successfully
@@ -117,8 +113,7 @@ queryCommitted 2
 queryCommitted 3
 queryCommitted 7
 
-## Invoke the chaincode - this does require that the chaincode have the 'initLedger'
-## method defined
+## Invoke the chaincode - this does require that the chaincode have the 'initLedger' method defined
 if [ "$CC_INIT_FCN" = "NA" ]; then
   infoln "Chaincode initialization is not required"
 else
