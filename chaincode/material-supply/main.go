@@ -18,6 +18,7 @@ type RawMaterial struct {
 	Symbol     string `json:"symbol"`
 	Quantity   int    `json:"quantity"`
 	Status     string `json:"status"`
+	Available  string `json:available`
 	VerifiedBy string `json:"verifiedBy"`
 	Timestamp  string `json:"timestamp"`
 }
@@ -56,7 +57,7 @@ func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionCo
 		SupplierID: supplierID,
 		Symbol:     symbol,
 		Quantity:   quantity,
-		Status:     "available",
+		Status:     "NEW",
 		Timestamp:  time.Now().Format(time.RFC3339),
 	}
 

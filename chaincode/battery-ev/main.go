@@ -26,12 +26,12 @@ type Battery struct {
 }
 
 type BatteryPassport struct {
-	BatteryID             string    `json:"batteryID"`
-	PassportID            string    `json:"passportID"`
-	RecycledMaterialRatio float64   `json:"recycledMaterialRatio"`
-	IsRecycled            bool      `json:"isRecycled"`
-	ContainsHazardous     bool      `json:"containsHazardous"`
-	ManufactureDate       time.Time `json:"manufactureDate"`
+	BatteryID             string             `json:"batteryID"`
+	PassportID            string             `json:"passportID"`
+	RecycledMaterialRatio map[string]float64 `json:"recycledMaterialRatio"` // 각 원자재의 재활용 비율
+	IsRecycled            bool               `json:"isRecycled"`
+	ContainsHazardous     bool               `json:"containsHazardous"`
+	ManufactureDate       time.Time          `json:"manufactureDate"`
 }
 
 type RawMaterial struct {
@@ -129,12 +129,12 @@ func (s *BatteryChaincode) storeRawMaterialLocally(ctx contractapi.TransactionCo
 	return ctx.GetStub().PutState(rawMaterial.MaterialID, rawMaterialAsBytes)
 }
 
-func (s *BatteryChaincode) CreateBatteryPassport(batteryID string, recycledRatio float64, isRecycled bool, containsHazardous bool) (*BatteryPassport, error) {
+func (s *BatteryChaincode) CreateBatteryPassport(batteryID string, recycledRatio map[string]float64, isRecycled bool, containsHazardous bool) (*BatteryPassport, error) {
 	passportID := fmt.Sprintf("PASS-%s", batteryID)
 	passport := &BatteryPassport{
 		BatteryID:             batteryID,
 		PassportID:            passportID,
-		RecycledMaterialRatio: recycledRatio,
+		RecycledMaterialRatio: recycledRatio, // map 형태의 비율 정보
 		IsRecycled:            isRecycled,
 		ContainsHazardous:     containsHazardous,
 		ManufactureDate:       time.Now(),
@@ -142,7 +142,7 @@ func (s *BatteryChaincode) CreateBatteryPassport(batteryID string, recycledRatio
 	return passport, nil
 }
 
-func (s *BatteryChaincode) ManufactureBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64) (string, error) {
+func (s *BatteryChaincode) ManufactureBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64, recycledRatio map[string]float64, isRecycled bool, containsHazardous bool) (string, error) {
 	var rawMaterials map[string]int
 	err := json.Unmarshal([]byte(rawMaterialsJSON), &rawMaterials)
 	if err != nil {
@@ -197,6 +197,20 @@ func (s *BatteryChaincode) ManufactureBattery(ctx contractapi.TransactionContext
 	err = ctx.GetStub().PutState(batteryID, batteryAsBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to store battery: %v", err)
+	}
+
+	// 배터리 여권 생성
+	passport, err := s.CreateBatteryPassport(batteryID, recycledRatio, isRecycled, containsHazardous)
+	if err != nil {
+		return "", fmt.Errorf("failed to create battery passport: %v", err)
+	}
+	passportAsBytes, err := json.Marshal(passport)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal battery passport: %v", err)
+	}
+	err = ctx.GetStub().PutState(passport.PassportID, passportAsBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to store battery passport: %v", err)
 	}
 
 	return batteryID, nil

@@ -12,7 +12,7 @@ const path = require('path');
 async function main() {
     try {
         // 네트워크 설정을 읽어옵니다.
-        const ccpPath = path.resolve(__dirname, '..', 'test-network', 'organizations', 'peerOrganizations', 'org1.example.com', 'connection-org1.json');
+        const ccpPath = path.resolve(__dirname, '..', 'organizations', 'peerOrganizations', 'org1.example.com', 'connection-org1.json');
         const ccp = JSON.parse(fs.readFileSync(ccpPath, 'utf8'));
 
         // CA 클라이언트를 설정합니다.
