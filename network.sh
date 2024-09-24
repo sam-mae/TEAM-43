@@ -468,6 +468,35 @@ function deployCC2() {
   fi
 }
 
+function deployCC3() {
+  scripts/deployCC3.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
+  if [ $? -ne 0 ]; then
+    fatalln "Deploying chaincode failed"
+  fi
+}
+
+function deployCC4() {
+  scripts/deployCC4.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
+  if [ $? -ne 0 ]; then
+    fatalln "Deploying chaincode failed"
+  fi
+}
+
+function deployCC5() {
+  scripts/deployCC5.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
+  if [ $? -ne 0 ]; then
+    fatalln "Deploying chaincode failed"
+  fi
+}
+
+function deployCCPublic() {
+  scripts/deployCCPublic.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
+  if [ $? -ne 0 ]; then
+    fatalln "Deploying chaincode failed"
+  fi
+}
+
+
 ## Call the script to deploy a chaincode to the channel
 function deployCCAAS() {
   scripts/deployCCAAS.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CCAAS_DOCKER_RUN $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE $CCAAS_DOCKER_RUN
@@ -783,6 +812,18 @@ elif [ "$MODE" == "deployCC" ]; then
 elif [ "$MODE" == "deployCC2" ]; then
   infoln "deploying chaincode on channel '${CHANNEL_NAME}'"
   deployCC2
+elif [ "$MODE" == "deployCC3" ]; then
+  infoln "deploying chaincode on channel '${CHANNEL_NAME}'"
+  deployCC3
+elif [ "$MODE" == "deployCC4" ]; then
+  infoln "deploying chaincode on channel '${CHANNEL_NAME}'"
+  deployCC4
+elif [ "$MODE" == "deployCC5" ]; then
+  infoln "deploying chaincode on channel '${CHANNEL_NAME}'"
+  deployCC5
+elif [ "$MODE" == "deployCCPublic" ]; then
+  infoln "deploying chaincode on channel '${CHANNEL_NAME}'"
+  deployCCPublic
 elif [ "$MODE" == "deployCCAAS" ]; then
   infoln "deploying chaincode-as-a-service on channel '${CHANNEL_NAME}'"
   deployCCAAS

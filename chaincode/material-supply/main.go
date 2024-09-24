@@ -15,16 +15,16 @@ type RawMaterialChaincode struct {
 type RawMaterial struct {
 	MaterialID string `json:"materialID"`
 	SupplierID string `json:"supplierID"`
-	Symbol     string `json:"symbol"`
+	Name       string `json:"name"`
 	Quantity   int    `json:"quantity"`
-	Status     string `json:"status"`
+	Status     string `json:"status"` // new or recycle
 	Available  string `json:available`
 	VerifiedBy string `json:"verifiedBy"`
 	Timestamp  string `json:"timestamp"`
 }
 
 // 만약 동일한 materialID가 존재하면 수량을 증가시킴
-func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, materialID string, supplierID string, symbol string, quantity int) error {
+func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, materialID string, supplierID string, name string, quantity int) error {
 	// 먼저 원자재가 기존에 존재하는지 확인
 	existingRawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
@@ -55,9 +55,10 @@ func (s *RawMaterialChaincode) RegisterRawMaterial(ctx contractapi.TransactionCo
 	rawMaterial := RawMaterial{
 		MaterialID: materialID,
 		SupplierID: supplierID,
-		Symbol:     symbol,
+		Name:       name,
 		Quantity:   quantity,
 		Status:     "NEW",
+		Available:  "Available",
 		Timestamp:  time.Now().Format(time.RFC3339),
 	}
 
@@ -92,7 +93,7 @@ func (s *RawMaterialChaincode) UpdateRawMaterialQuantity(ctx contractapi.Transac
 
 	rawMaterial.Quantity += changeAmount
 	if rawMaterial.Quantity == 0 {
-		rawMaterial.Status = "used"
+		rawMaterial.Available = "Not Available"
 	}
 	rawMaterial.Timestamp = time.Now().Format(time.RFC3339)
 

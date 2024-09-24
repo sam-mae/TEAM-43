@@ -33,7 +33,3 @@ services:
   peer0.org7.example.com:
     volumes:
       - ./podman/peercfg:/etc/hyperledger/peercfg
-
-  cli:
-    volumes:
-      - ./podman/peercfg:/etc/hyperledger/peercfg

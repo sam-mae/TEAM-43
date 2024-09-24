@@ -1,0 +1,810 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"time"
+
+	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+)
+
+// 통합 체인코드 구조체 정의
+type UnifiedChaincode struct {
+	contractapi.Contract
+}
+
+// RawMaterial 관련 구조체 및 함수
+type RawMaterial struct {
+	MaterialID string `json:"materialID"`
+	SupplierID string `json:"supplierID"`
+	Name       string `json:"name"`
+	Quantity   int    `json:"quantity"`
+	Status     string `json:"status"`
+	Available  string `json:"available"`
+	VerifiedBy string `json:"verifiedBy"`
+	Timestamp  string `json:"timestamp"`
+}
+
+type RawMaterialDetail struct {
+	MaterialID   string `json:"materialID"`
+	MaterialType string `json:"materialType"`
+	Quantity     int    `json:"quantity"`
+}
+
+func (s *UnifiedChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, supplierID string, name string, quantity int) (string, error) {
+	// materialID를 Unix Nano 시간 기반으로 생성
+	materialID := fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano())
+
+	// 기존 원자재가 있는지 확인
+	existingRawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
+	if err != nil {
+		return "", fmt.Errorf("failed to read raw material: %v", err)
+	}
+
+	// 기존에 동일 ID의 원자재가 있으면 수량을 증가
+	if existingRawMaterialAsBytes != nil {
+		existingRawMaterial := new(RawMaterial)
+		err := json.Unmarshal(existingRawMaterialAsBytes, existingRawMaterial)
+		if err != nil {
+			return "", fmt.Errorf("failed to unmarshal raw material: %v", err)
+		}
+
+		existingRawMaterial.Quantity += quantity
+		existingRawMaterial.Timestamp = time.Now().Format(time.RFC3339)
+
+		updatedRawMaterialAsBytes, err := json.Marshal(existingRawMaterial)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal updated raw material: %v", err)
+		}
+
+		err = ctx.GetStub().PutState(materialID, updatedRawMaterialAsBytes)
+		if err != nil {
+			return "", fmt.Errorf("failed to update raw material: %v", err)
+		}
+
+		return materialID, nil
+	}
+
+	// 신규 원자재 등록
+	rawMaterial := RawMaterial{
+		MaterialID: materialID,
+		SupplierID: supplierID,
+		Name:       name,
+		Quantity:   quantity,
+		Status:     "NEW",
+		Available:  "Available",
+		Timestamp:  time.Now().Format(time.RFC3339),
+	}
+
+	rawMaterialAsBytes, err := json.Marshal(rawMaterial)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal raw material: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(materialID, rawMaterialAsBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to store raw material: %v", err)
+	}
+
+	// 생성된 materialID 반환
+	return materialID, nil
+}
+
+func (s *UnifiedChaincode) QueryRawMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read raw material: %v", err)
+	}
+
+	if rawMaterialAsBytes == nil {
+		return nil, fmt.Errorf("raw material not found: %s", materialID)
+	}
+
+	rawMaterial := new(RawMaterial)
+	err = json.Unmarshal(rawMaterialAsBytes, rawMaterial)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal raw material: %v", err)
+	}
+
+	return rawMaterial, nil
+}
+
+// Battery 관련 구조체 및 함수
+type Battery struct {
+	BatteryID           string                       `json:"batteryID"`
+	RawMaterials        map[string]RawMaterialDetail `json:"rawMaterials"`
+	ManufactureDate     time.Time                    `json:"manufactureDate"`
+	Status              string                       `json:"status"`
+	Capacity            float64                      `json:"capacity"`
+	SOC                 float64                      `json:"soc"`
+	SOH                 float64                      `json:"soh"`
+	SOCE                float64                      `json:"soce"`
+	TotalLifeCycle      int                          `json:"totalLifeCycle"`
+	RemainingLifeCycle  int                          `json:"remainingLifeCycle"`
+	MaintenanceLogs     []string                     `json:"maintenanceLogs"`
+	AccidentLogs        []string                     `json:"accidentLogs"`
+	MaintenanceRequest  bool                         `json:"maintenanceRequest"`
+	AnalysisRequest     bool                         `json:"analysisRequest"`
+	RecycleAvailability bool                         `json:"recycleAvailability"`
+}
+
+func (s *UnifiedChaincode) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64, totalLifeCycle int, soc, soh float64) (string, error) {
+	var rawMaterials map[string]RawMaterialDetail
+
+	err := json.Unmarshal([]byte(rawMaterialsJSON), &rawMaterials)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal raw materials: %v", err)
+	}
+
+	batteryID := fmt.Sprintf("BATTERY-%d", time.Now().UnixNano())
+	battery := Battery{
+		BatteryID:          batteryID,
+		RawMaterials:       rawMaterials,
+		ManufactureDate:    time.Now(),
+		Status:             "ORIGINAL",
+		Capacity:           capacity,
+		TotalLifeCycle:     totalLifeCycle,
+		SOCE:               100,
+		SOC:                soc,
+		SOH:                soh,
+		RemainingLifeCycle: totalLifeCycle,
+	}
+
+	batteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal battery: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(batteryID, batteryAsBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to store battery: %v", err)
+	}
+
+	return batteryID, nil
+}
+
+// QueryAllRawMaterials : 원장에 저장된 모든 원자재 조회
+func (s *UnifiedChaincode) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+	// 원자재의 범위를 ""에서 ""까지로 설정하여 모든 원자재를 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all raw materials: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var rawMaterials []RawMaterial
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var rawMaterial RawMaterial
+		err = json.Unmarshal(queryResponse.Value, &rawMaterial)
+		if err != nil {
+			return nil, err
+		}
+
+		// 원자재 리스트에 추가
+		rawMaterials = append(rawMaterials, rawMaterial)
+	}
+
+	return rawMaterials, nil
+}
+
+func (s *UnifiedChaincode) QueryBatteryDetails(ctx contractapi.TransactionContextInterface, batteryID string) (*Battery, error) {
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read battery from state: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return nil, fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// accidentLogs가 nil이면 빈 배열로 초기화
+	if battery.AccidentLogs == nil {
+		battery.AccidentLogs = []string{}
+	}
+
+	// maintenanceLogs가 nil이면 빈 배열로 초기화
+	if battery.MaintenanceLogs == nil {
+		battery.MaintenanceLogs = []string{}
+	}
+
+	return &battery, nil
+}
+
+// 원자재 추출 로직
+type ExtractedMaterials struct {
+	BatteryID       string         `json:"batteryID"`
+	ExtractedAmount map[string]int `json:"extractedAmount"`
+	Timestamp       time.Time      `json:"timestamp"`
+}
+
+var extractionRates = map[string]float64{
+	"Lithium":   0.3,
+	"Cobalt":    0.2,
+	"Manganese": 0.25,
+	"Nickel":    0.25,
+}
+
+// ExtractMaterials : 배터리에서 원자재를 추출하고 추출된 원자재의 상태를 "Recycled"로 설정하며 새로운 ID 부여
+// 배터리의 상태도 "Recycled"로 변경
+func (s *UnifiedChaincode) ExtractMaterials(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]map[string]interface{}, error) {
+	// 배터리 정보 조회
+	battery, err := s.QueryBatteryDetails(ctx, batteryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query battery details: %v", err)
+	}
+
+	extractedMaterials := make(map[string]map[string]interface{})
+	for _, detail := range battery.RawMaterials {
+		// 추출 비율에 따른 원자재 추출
+		extractionRate, exists := extractionRates[detail.MaterialType]
+		if !exists {
+			continue // 정의되지 않은 추출 비율을 가진 원자재는 건너뜁니다.
+		}
+
+		// 추출된 원자재 양 계산
+		extractedQuantity := int(math.Floor(float64(detail.Quantity) * extractionRate))
+
+		// 새로운 ID 생성 (BATTERY와 유사한 방식으로 생성)
+		newMaterialID := fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano())
+
+		// 새로운 원자재를 생성하여 저장
+		newRawMaterial := RawMaterial{
+			MaterialID: newMaterialID,
+			SupplierID: "", // 새로운 원자재이므로 공급자 정보는 없음
+			Name:       detail.MaterialType,
+			Quantity:   extractedQuantity,
+			Status:     "Recycled", // 상태를 "Recycled"로 설정
+			Available:  "Available",
+			Timestamp:  time.Now().Format(time.RFC3339),
+		}
+
+		// 원장에 새로운 원자재 저장
+		newRawMaterialAsBytes, err := json.Marshal(newRawMaterial)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal new raw material: %v", err)
+		}
+
+		err = ctx.GetStub().PutState(newMaterialID, newRawMaterialAsBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to store new raw material: %v", err)
+		}
+
+		// 추출된 원자재 ID, 이름 및 수량을 기록
+		extractedMaterials[detail.MaterialType] = map[string]interface{}{
+			"materialID": newMaterialID,
+			"quantity":   extractedQuantity,
+		}
+	}
+
+	// 배터리 상태를 "Recycled"로 설정
+	battery.Status = "Recycled"
+
+	// 업데이트된 배터리 정보 저장
+	batteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal battery: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(battery.BatteryID, batteryAsBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update battery: %v", err)
+	}
+
+	return extractedMaterials, nil
+}
+
+// RequestMaintenance : 특정 배터리의 유지보수 요청 생성
+func (s *UnifiedChaincode) RequestMaintenance(ctx contractapi.TransactionContextInterface, batteryID string) error {
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return fmt.Errorf("failed to read battery: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	// 배터리 정보 언마샬링
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// 유지보수 요청 플래그 설정
+	battery.MaintenanceRequest = true
+
+	// 변경된 배터리 정보 저장
+	updatedBatteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return fmt.Errorf("failed to marshal battery: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(battery.BatteryID, updatedBatteryAsBytes)
+	if err != nil {
+		return fmt.Errorf("failed to update battery: %v", err)
+	}
+
+	return nil
+}
+
+// 추가된 함수들: 사고 및 유지보수 로그 관리
+func (s *UnifiedChaincode) AddMaintenanceLog(ctx contractapi.TransactionContextInterface, batteryID string, info string, maintenanceDate string, company string) error {
+	battery, err := s.QueryBatteryDetails(ctx, batteryID)
+	if err != nil {
+		return err
+	}
+
+	maintenanceLog := fmt.Sprintf("Maintenance on %s by %s: %s", maintenanceDate, company, info)
+	battery.MaintenanceLogs = append(battery.MaintenanceLogs, maintenanceLog)
+	battery.SOC -= 5
+	if battery.SOC < 0 {
+		battery.SOC = 0
+	}
+	battery.MaintenanceRequest = false
+
+	err = s.saveBattery(ctx, battery)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RequestAnalysis : 특정 배터리에 대한 분석 요청 생성
+func (s *UnifiedChaincode) RequestAnalysis(ctx contractapi.TransactionContextInterface, batteryID string) error {
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return fmt.Errorf("failed to read battery: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	// 배터리 정보 언마샬링
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// 분석 요청 플래그 설정
+	battery.AnalysisRequest = true
+
+	// 변경된 배터리 정보 저장
+	updatedBatteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return fmt.Errorf("failed to marshal battery: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(battery.BatteryID, updatedBatteryAsBytes)
+	if err != nil {
+		return fmt.Errorf("failed to update battery: %v", err)
+	}
+
+	return nil
+}
+
+// QueryBatteriesWithMaintenanceRequest : 유지보수 요청이 true인 배터리들만 조회
+func (s *UnifiedChaincode) QueryBatteriesWithMaintenanceRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+	// 원장에 저장된 모든 배터리를 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query batteries: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var batteriesWithMaintenanceRequest []Battery
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var battery Battery
+		err = json.Unmarshal(queryResponse.Value, &battery)
+		if err != nil {
+			return nil, err
+		}
+
+		// 로그 필드들이 nil이면 빈 배열로 초기화
+		if battery.AccidentLogs == nil {
+			battery.AccidentLogs = []string{}
+		}
+		if battery.MaintenanceLogs == nil {
+			battery.MaintenanceLogs = []string{}
+		}
+
+		// 유지보수 요청(MaintenanceRequest)이 true인 배터리만 필터링하여 추가
+		if battery.MaintenanceRequest {
+			batteriesWithMaintenanceRequest = append(batteriesWithMaintenanceRequest, battery)
+		}
+	}
+
+	return batteriesWithMaintenanceRequest, nil
+}
+
+// QueryBatteriesWithAnalysisRequest : 분석 요청이 true인 배터리들만 조회
+func (s *UnifiedChaincode) QueryBatteriesWithAnalysisRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+	// 원장에 저장된 모든 배터리를 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query batteries: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var batteriesWithAnalysisRequest []Battery
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var battery Battery
+		err = json.Unmarshal(queryResponse.Value, &battery)
+		if err != nil {
+			return nil, err
+		}
+
+		// 로그 필드들이 nil이면 빈 배열로 초기화
+		if battery.AccidentLogs == nil {
+			battery.AccidentLogs = []string{}
+		}
+		if battery.MaintenanceLogs == nil {
+			battery.MaintenanceLogs = []string{}
+		}
+
+		// 분석 요청(AnalysisRequest)이 true인 배터리만 필터링하여 추가
+		if battery.AnalysisRequest {
+			batteriesWithAnalysisRequest = append(batteriesWithAnalysisRequest, battery)
+		}
+	}
+
+	return batteriesWithAnalysisRequest, nil
+}
+
+// QueryBatterySOCEAndLifeCycle : 특정 배터리의 SOCE, Remaining Life Cycle, Capacity 등을 조회하는 함수
+func (s *UnifiedChaincode) QueryBatterySOCEAndLifeCycle(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read battery: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return nil, fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// 로그 필드들이 nil이면 빈 배열로 초기화
+	if battery.AccidentLogs == nil {
+		battery.AccidentLogs = []string{}
+	}
+	if battery.MaintenanceLogs == nil {
+		battery.MaintenanceLogs = []string{}
+	}
+
+	// 배터리의 SOCE, Remaining Life Cycle, Total Life Cycle, Capacity 반환
+	batteryDetails := map[string]interface{}{
+		"batteryID":          battery.BatteryID,
+		"capacity":           battery.Capacity,
+		"soce":               battery.SOCE,
+		"remainingLifeCycle": battery.RemainingLifeCycle,
+		"totalLifeCycle":     battery.TotalLifeCycle,
+	}
+
+	return batteryDetails, nil
+}
+
+// QueryBatteriesWithRecycleAvailability : 재활용 가능성이 true로 설정된 배터리들만 조회
+func (s *UnifiedChaincode) QueryBatteriesWithRecycleAvailability(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+	// 원장에 저장된 모든 배터리를 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query batteries: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var batteriesWithRecycleAvailability []Battery
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var battery Battery
+		err = json.Unmarshal(queryResponse.Value, &battery)
+		if err != nil {
+			return nil, err
+		}
+
+		// 로그 필드들이 nil이면 빈 배열로 초기화
+		if battery.AccidentLogs == nil {
+			battery.AccidentLogs = []string{}
+		}
+		if battery.MaintenanceLogs == nil {
+			battery.MaintenanceLogs = []string{}
+		}
+
+		// RecycleAvailability가 true인 배터리만 필터링하여 추가
+		if battery.RecycleAvailability {
+			batteriesWithRecycleAvailability = append(batteriesWithRecycleAvailability, battery)
+		}
+	}
+
+	return batteriesWithRecycleAvailability, nil
+}
+
+func (s *UnifiedChaincode) AddAccidentLog(ctx contractapi.TransactionContextInterface, batteryID string, incidentDataJSON string) error {
+	battery, err := s.QueryBatteryDetails(ctx, batteryID)
+	if err != nil {
+		return err
+	}
+
+	var incidentData struct {
+		IncidentDate            string `json:"incidentDate"`
+		IncidentType            string `json:"incidentType"`
+		BatteryImpactAssessment string `json:"batteryImpactAssessment"`
+		ActionInformation       string `json:"actionInformation"`
+	}
+
+	err = json.Unmarshal([]byte(incidentDataJSON), &incidentData)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal incident data: %v", err)
+	}
+
+	accidentLog := fmt.Sprintf("Accident on %s: %s, Impact: %s, Action: %s",
+		incidentData.IncidentDate, incidentData.IncidentType, incidentData.BatteryImpactAssessment, incidentData.ActionInformation)
+	battery.AccidentLogs = append(battery.AccidentLogs, accidentLog)
+
+	battery.SOH -= 10
+	if battery.SOH < 0 {
+		battery.SOH = 0
+	}
+	battery.MaintenanceRequest = false
+
+	err = s.saveBattery(ctx, battery)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SetRecycleAvailability : 특정 배터리의 재활용 가능 여부를 설정하는 함수
+func (s *UnifiedChaincode) SetRecycleAvailability(ctx contractapi.TransactionContextInterface, batteryID string, recycleAvailability bool) error {
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return fmt.Errorf("failed to read battery: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	// 배터리 정보 언마샬링
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// 재활용 가능 여부 설정
+	battery.RecycleAvailability = recycleAvailability
+
+	// 변경된 배터리 정보 저장
+	updatedBatteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return fmt.Errorf("failed to marshal battery: %v", err)
+	}
+
+	err = ctx.GetStub().PutState(battery.BatteryID, updatedBatteryAsBytes)
+	if err != nil {
+		return fmt.Errorf("failed to update battery: %v", err)
+	}
+
+	return nil
+}
+
+// 저장 함수
+func (s *UnifiedChaincode) saveBattery(ctx contractapi.TransactionContextInterface, battery *Battery) error {
+	batteryAsBytes, err := json.Marshal(battery)
+	if err != nil {
+		return fmt.Errorf("failed to marshal battery update: %v", err)
+	}
+
+	return ctx.GetStub().PutState(battery.BatteryID, batteryAsBytes)
+}
+
+// QueryExtractedMaterial : 추출된 원자재를 materialID로 조회
+func (s *UnifiedChaincode) QueryExtractedMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+	// materialID로 원자재 조회
+	materialAsBytes, err := ctx.GetStub().GetState(materialID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read material: %v", err)
+	}
+	if materialAsBytes == nil {
+		return nil, fmt.Errorf("material not found: %s", materialID)
+	}
+
+	var material RawMaterial
+	err = json.Unmarshal(materialAsBytes, &material)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal material: %v", err)
+	}
+
+	return &material, nil
+}
+
+// QueryRecycledMaterials : 재활용된 원자재(Status가 "Recycled"인 원자재) 목록 조회
+func (s *UnifiedChaincode) QueryRecycledMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+	// 원장에 저장된 모든 원자재 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all raw materials: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var recycledMaterials []RawMaterial
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var material RawMaterial
+		err = json.Unmarshal(queryResponse.Value, &material)
+		if err != nil {
+			return nil, err
+		}
+
+		// 원자재의 상태가 "Recycled"인 경우 필터링하여 목록에 추가
+		if material.Status == "Recycled" {
+			recycledMaterials = append(recycledMaterials, material)
+		}
+	}
+
+	return recycledMaterials, nil
+}
+
+// QueryAllMaterials : 신규 원자재와 재활용 원자재를 모두 조회하는 함수
+func (s *UnifiedChaincode) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
+	// 원장에 저장된 모든 원자재 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all raw materials: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	// 분류할 신규 및 재활용 원자재 리스트
+	allMaterials := map[string][]RawMaterial{
+		"newMaterials":      {},
+		"recycledMaterials": {},
+	}
+
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var material RawMaterial
+		err = json.Unmarshal(queryResponse.Value, &material)
+		if err != nil {
+			return nil, err
+		}
+
+		// 원자재 상태에 따라 분류
+		if material.Status == "Recycled" {
+			allMaterials["recycledMaterials"] = append(allMaterials["recycledMaterials"], material)
+		} else {
+			allMaterials["newMaterials"] = append(allMaterials["newMaterials"], material)
+		}
+	}
+
+	return allMaterials, nil
+}
+
+// initMaterialLedger : 원장에 신규 원자재와 재활용 원자재를 미리 등록하는 함수
+func (s *UnifiedChaincode) InitMaterialLedger(ctx contractapi.TransactionContextInterface) error {
+	// 신규 원자재
+	newMaterials := []RawMaterial{
+		{
+			MaterialID: fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano()),
+			SupplierID: "SUPPLIER-001",
+			Name:       "Lithium",
+			Quantity:   100,
+			Status:     "NEW",
+			Available:  "Available",
+			Timestamp:  time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID: fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano()),
+			SupplierID: "SUPPLIER-001",
+			Name:       "Cobalt",
+			Quantity:   200,
+			Status:     "NEW",
+			Available:  "Available",
+			Timestamp:  time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// 재활용 원자재
+	recycledMaterials := []RawMaterial{
+		{
+			MaterialID: fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano()),
+			SupplierID: "SUPPLIER-001",
+			Name:       "Nickel",
+			Quantity:   50,
+			Status:     "Recycled",
+			Available:  "Available",
+			Timestamp:  time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID: fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano()),
+			SupplierID: "SUPPLIER-001",
+			Name:       "Manganese",
+			Quantity:   30,
+			Status:     "Recycled",
+			Available:  "Available",
+			Timestamp:  time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// 신규 원자재를 원장에 저장
+	for _, material := range newMaterials {
+		materialAsBytes, err := json.Marshal(material)
+		if err != nil {
+			return fmt.Errorf("failed to marshal new material: %v", err)
+		}
+
+		err = ctx.GetStub().PutState(material.MaterialID, materialAsBytes)
+		if err != nil {
+			return fmt.Errorf("failed to put new material to ledger: %v", err)
+		}
+	}
+
+	// 재활용 원자재를 원장에 저장
+	for _, material := range recycledMaterials {
+		materialAsBytes, err := json.Marshal(material)
+		if err != nil {
+			return fmt.Errorf("failed to marshal recycled material: %v", err)
+		}
+
+		err = ctx.GetStub().PutState(material.MaterialID, materialAsBytes)
+		if err != nil {
+			return fmt.Errorf("failed to put recycled material to ledger: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func main() {
+	chaincode, err := contractapi.NewChaincode(new(UnifiedChaincode))
+	if err != nil {
+		fmt.Printf("Error creating unified chaincode: %v\n", err)
+		return
+	}
+
+	if err := chaincode.Start(); err != nil {
+		fmt.Printf("Error starting unified chaincode: %v\n", err)
+	}
+}
