@@ -10,7 +10,7 @@ import (
 )
 
 // 통합 체인코드 구조체 정의
-type UnifiedChaincode struct {
+type SmartContact struct {
 	contractapi.Contract
 }
 
@@ -32,7 +32,18 @@ type RawMaterialDetail struct {
 	Quantity     int    `json:"quantity"`
 }
 
-func (s *UnifiedChaincode) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, supplierID string, name string, quantity int) (string, error) {
+func (s *SmartContact) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, supplierID string, name string, quantity int) (string, error) {
+
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return "", fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org1만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org1MSP" {
+		return "", fmt.Errorf("permission denied: only RawMaterial Supplier ORG can register raw materials")
+	}
+
 	// materialID를 Unix Nano 시간 기반으로 생성
 	materialID := fmt.Sprintf("MATERIAL-%d", time.Now().UnixNano())
 
@@ -91,7 +102,7 @@ func (s *UnifiedChaincode) RegisterRawMaterial(ctx contractapi.TransactionContex
 	return materialID, nil
 }
 
-func (s *UnifiedChaincode) QueryRawMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+func (s *SmartContact) QueryRawMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
 	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read raw material: %v", err)
@@ -116,6 +127,7 @@ type Battery struct {
 	RawMaterials        map[string]RawMaterialDetail `json:"rawMaterials"`
 	ManufactureDate     time.Time                    `json:"manufactureDate"`
 	Status              string                       `json:"status"`
+	Verified            string                       `'json:"verifed"`
 	Capacity            float64                      `json:"capacity"`
 	SOC                 float64                      `json:"soc"`
 	SOH                 float64                      `json:"soh"`
@@ -129,10 +141,22 @@ type Battery struct {
 	RecycleAvailability bool                         `json:"recycleAvailability"`
 }
 
-func (s *UnifiedChaincode) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64, totalLifeCycle int, soc, soh float64) (string, error) {
+func (s *SmartContact) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64, totalLifeCycle int, soc, soh float64) (string, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return "", fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org2만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org2MSP" {
+		return "", fmt.Errorf("permission denied: only Battery Manufacturer ORG can create batteries")
+	}
+
 	var rawMaterials map[string]RawMaterialDetail
 
-	err := json.Unmarshal([]byte(rawMaterialsJSON), &rawMaterials)
+	err = json.Unmarshal([]byte(rawMaterialsJSON), &rawMaterials)
 	if err != nil {
 		return "", fmt.Errorf("failed to unmarshal raw materials: %v", err)
 	}
@@ -143,6 +167,7 @@ func (s *UnifiedChaincode) CreateBattery(ctx contractapi.TransactionContextInter
 		RawMaterials:       rawMaterials,
 		ManufactureDate:    time.Now(),
 		Status:             "ORIGINAL",
+		Verified:           "NOT VERIFIED",
 		Capacity:           capacity,
 		TotalLifeCycle:     totalLifeCycle,
 		SOCE:               100,
@@ -165,7 +190,7 @@ func (s *UnifiedChaincode) CreateBattery(ctx contractapi.TransactionContextInter
 }
 
 // QueryAllRawMaterials : 원장에 저장된 모든 원자재 조회
-func (s *UnifiedChaincode) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+func (s *SmartContact) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
 	// 원자재의 범위를 ""에서 ""까지로 설정하여 모든 원자재를 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -193,7 +218,7 @@ func (s *UnifiedChaincode) QueryAllRawMaterials(ctx contractapi.TransactionConte
 	return rawMaterials, nil
 }
 
-func (s *UnifiedChaincode) QueryBatteryDetails(ctx contractapi.TransactionContextInterface, batteryID string) (*Battery, error) {
+func (s *SmartContact) QueryBatteryDetails(ctx contractapi.TransactionContextInterface, batteryID string) (*Battery, error) {
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -238,7 +263,19 @@ var extractionRates = map[string]float64{
 
 // ExtractMaterials : 배터리에서 원자재를 추출하고 추출된 원자재의 상태를 "Recycled"로 설정하며 새로운 ID 부여
 // 배터리의 상태도 "Recycled"로 변경
-func (s *UnifiedChaincode) ExtractMaterials(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]map[string]interface{}, error) {
+func (s *SmartContact) ExtractMaterials(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]map[string]interface{}, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org6만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org6MSP" {
+		return nil, fmt.Errorf("permission denied: only Recycle ORG can extract materials")
+	}
+
 	// 배터리 정보 조회
 	battery, err := s.QueryBatteryDetails(ctx, batteryID)
 	if err != nil {
@@ -306,7 +343,19 @@ func (s *UnifiedChaincode) ExtractMaterials(ctx contractapi.TransactionContextIn
 }
 
 // RequestMaintenance : 특정 배터리의 유지보수 요청 생성
-func (s *UnifiedChaincode) RequestMaintenance(ctx contractapi.TransactionContextInterface, batteryID string) error {
+func (s *SmartContact) RequestMaintenance(ctx contractapi.TransactionContextInterface, batteryID string) error {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" {
+		return fmt.Errorf("permission denied: only EV ORG can extract materials")
+	}
+
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -341,7 +390,19 @@ func (s *UnifiedChaincode) RequestMaintenance(ctx contractapi.TransactionContext
 }
 
 // 추가된 함수들: 사고 및 유지보수 로그 관리
-func (s *UnifiedChaincode) AddMaintenanceLog(ctx contractapi.TransactionContextInterface, batteryID string, info string, maintenanceDate string, company string) error {
+func (s *SmartContact) AddMaintenanceLog(ctx contractapi.TransactionContextInterface, batteryID string, info string, maintenanceDate string, company string) error {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org4만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org4MSP" {
+		return fmt.Errorf("permission denied: only Maintenance ORG can extract materials")
+	}
+
 	battery, err := s.QueryBatteryDetails(ctx, batteryID)
 	if err != nil {
 		return err
@@ -364,7 +425,19 @@ func (s *UnifiedChaincode) AddMaintenanceLog(ctx contractapi.TransactionContextI
 }
 
 // RequestAnalysis : 특정 배터리에 대한 분석 요청 생성
-func (s *UnifiedChaincode) RequestAnalysis(ctx contractapi.TransactionContextInterface, batteryID string) error {
+func (s *SmartContact) RequestAnalysis(ctx contractapi.TransactionContextInterface, batteryID string) error {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" {
+		return fmt.Errorf("permission denied: only EV ORG can extract materials")
+	}
+
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -399,7 +472,19 @@ func (s *UnifiedChaincode) RequestAnalysis(ctx contractapi.TransactionContextInt
 }
 
 // QueryBatteriesWithMaintenanceRequest : 유지보수 요청이 true인 배터리들만 조회
-func (s *UnifiedChaincode) QueryBatteriesWithMaintenanceRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *SmartContact) QueryBatteriesWithMaintenanceRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3 또는 org4만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" && clientMSPID != "Org4MSP" {
+		return nil, fmt.Errorf("permission denied: only EV ORG or Maintenance ORG can query batteries with maintenance requests")
+	}
+
 	// 원장에 저장된 모든 배터리를 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -438,7 +523,19 @@ func (s *UnifiedChaincode) QueryBatteriesWithMaintenanceRequest(ctx contractapi.
 }
 
 // QueryBatteriesWithAnalysisRequest : 분석 요청이 true인 배터리들만 조회
-func (s *UnifiedChaincode) QueryBatteriesWithAnalysisRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *SmartContact) QueryBatteriesWithAnalysisRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3 또는 org5만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" && clientMSPID != "Org5MSP" {
+		return nil, fmt.Errorf("permission denied: only EV ORG or Analysis ORG can query batteries with maintenance requests")
+	}
+
 	// 원장에 저장된 모든 배터리를 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -477,7 +574,19 @@ func (s *UnifiedChaincode) QueryBatteriesWithAnalysisRequest(ctx contractapi.Tra
 }
 
 // QueryBatterySOCEAndLifeCycle : 특정 배터리의 SOCE, Remaining Life Cycle, Capacity 등을 조회하는 함수
-func (s *UnifiedChaincode) QueryBatterySOCEAndLifeCycle(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+func (s *SmartContact) QueryBatterySOCEAndLifeCycle(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3 또는 org5만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" && clientMSPID != "Org5MSP" {
+		return nil, fmt.Errorf("permission denied: only EV ORG or Analysis ORG can query batteries with maintenance requests")
+	}
+
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -514,7 +623,19 @@ func (s *UnifiedChaincode) QueryBatterySOCEAndLifeCycle(ctx contractapi.Transact
 }
 
 // QueryBatteriesWithRecycleAvailability : 재활용 가능성이 true로 설정된 배터리들만 조회
-func (s *UnifiedChaincode) QueryBatteriesWithRecycleAvailability(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *SmartContact) QueryBatteriesWithRecycleAvailability(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org3 또는 org6만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org3MSP" && clientMSPID != "Org6MSP" {
+		return nil, fmt.Errorf("permission denied: only EV ORG or Recycle ORG can query batteries with maintenance requests")
+	}
+
 	// 원장에 저장된 모든 배터리를 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -552,7 +673,8 @@ func (s *UnifiedChaincode) QueryBatteriesWithRecycleAvailability(ctx contractapi
 	return batteriesWithRecycleAvailability, nil
 }
 
-func (s *UnifiedChaincode) AddAccidentLog(ctx contractapi.TransactionContextInterface, batteryID string, incidentDataJSON string) error {
+func (s *SmartContact) AddAccidentLog(ctx contractapi.TransactionContextInterface, batteryID string, incidentDataJSON string) error {
+
 	battery, err := s.QueryBatteryDetails(ctx, batteryID)
 	if err != nil {
 		return err
@@ -589,7 +711,19 @@ func (s *UnifiedChaincode) AddAccidentLog(ctx contractapi.TransactionContextInte
 }
 
 // SetRecycleAvailability : 특정 배터리의 재활용 가능 여부를 설정하는 함수
-func (s *UnifiedChaincode) SetRecycleAvailability(ctx contractapi.TransactionContextInterface, batteryID string, recycleAvailability bool) error {
+func (s *SmartContact) SetRecycleAvailability(ctx contractapi.TransactionContextInterface, batteryID string, recycleAvailability bool) error {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	// org5만이 이 함수를 호출할 수 있도록 제한
+	if clientMSPID != "Org5MSP" {
+		return fmt.Errorf("permission denied: only Battery Analysis ORG can create batteries")
+	}
+
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -624,7 +758,7 @@ func (s *UnifiedChaincode) SetRecycleAvailability(ctx contractapi.TransactionCon
 }
 
 // 저장 함수
-func (s *UnifiedChaincode) saveBattery(ctx contractapi.TransactionContextInterface, battery *Battery) error {
+func (s *SmartContact) saveBattery(ctx contractapi.TransactionContextInterface, battery *Battery) error {
 	batteryAsBytes, err := json.Marshal(battery)
 	if err != nil {
 		return fmt.Errorf("failed to marshal battery update: %v", err)
@@ -634,7 +768,7 @@ func (s *UnifiedChaincode) saveBattery(ctx contractapi.TransactionContextInterfa
 }
 
 // QueryExtractedMaterial : 추출된 원자재를 materialID로 조회
-func (s *UnifiedChaincode) QueryExtractedMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+func (s *SmartContact) QueryExtractedMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
 	// materialID로 원자재 조회
 	materialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
@@ -654,7 +788,7 @@ func (s *UnifiedChaincode) QueryExtractedMaterial(ctx contractapi.TransactionCon
 }
 
 // QueryRecycledMaterials : 재활용된 원자재(Status가 "Recycled"인 원자재) 목록 조회
-func (s *UnifiedChaincode) QueryRecycledMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+func (s *SmartContact) QueryRecycledMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -685,7 +819,7 @@ func (s *UnifiedChaincode) QueryRecycledMaterials(ctx contractapi.TransactionCon
 }
 
 // QueryAllMaterials : 신규 원자재와 재활용 원자재를 모두 조회하는 함수
-func (s *UnifiedChaincode) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
+func (s *SmartContact) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -723,7 +857,7 @@ func (s *UnifiedChaincode) QueryAllMaterials(ctx contractapi.TransactionContextI
 }
 
 // initMaterialLedger : 원장에 신규 원자재와 재활용 원자재를 미리 등록하는 함수
-func (s *UnifiedChaincode) InitMaterialLedger(ctx contractapi.TransactionContextInterface) error {
+func (s *SmartContact) InitMaterialLedger(ctx contractapi.TransactionContextInterface) error {
 	// 신규 원자재
 	newMaterials := []RawMaterial{
 		{
@@ -798,7 +932,7 @@ func (s *UnifiedChaincode) InitMaterialLedger(ctx contractapi.TransactionContext
 }
 
 func main() {
-	chaincode, err := contractapi.NewChaincode(new(UnifiedChaincode))
+	chaincode, err := contractapi.NewChaincode(new(SmartContact))
 	if err != nil {
 		fmt.Printf("Error creating unified chaincode: %v\n", err)
 		return
