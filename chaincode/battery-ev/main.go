@@ -23,6 +23,8 @@ type Battery struct {
 	BatteryID           string                       `json:"batteryID"`
 	RawMaterials        map[string]RawMaterialDetail `json:"rawMaterials"` // 수정된 부분
 	ManufactureDate     time.Time                    `json:"manufactureDate"`
+	ManufacturerName    string                       `json:"ManufacturerName"`
+	Weight              float64                      `json:"weight"`
 	Capacity            float64                      `json:"capacity"`
 	SOC                 float64                      `json:"soc"`
 	SOH                 float64                      `json:"soh"`

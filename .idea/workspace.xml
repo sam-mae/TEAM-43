@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="ced76181-f470-45e1-a672-548feaa1363e" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/components/organisms/MaterialRegisterModal.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/components/organisms/MaterialRegisterModal.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/pages/MaterialListPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/pages/MaterialListPage.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/services/additional_api.js" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/services/additional_api.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/app.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/admin_org1.id" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org1/admin_org1.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org1/admin_org1.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org1/org1User.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org1/org1User.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org2/admin_org2.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org2/admin_org2.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org2/org2User.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org2/org2User.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org3/admin_org3.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org3/admin_org3.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org3/org3User.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org3/org3User.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org4/admin_org4.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org4/admin_org4.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org4/org4User.id" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org5/admin_org5.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org5/admin_org5.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org5/org5User.id" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org6/admin_org6.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org6/admin_org6.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org6/org6User.id" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org7/admin_org7.id" beforeDir="false" afterPath="$PROJECT_DIR$/backend/wallet/org7/admin_org7.id" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/wallet/org7/org7User.id" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/chaincode/battery-ev/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/chaincode/battery-ev/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chaincode/public/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/chaincode/public/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/organizations/fabric-ca/org3/fabric-ca-server.db" beforeDir="false" afterPath="$PROJECT_DIR$/organizations/fabric-ca/org3/fabric-ca-server.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/organizations/fabric-ca/org4/fabric-ca-server.db" beforeDir="false" afterPath="$PROJECT_DIR$/organizations/fabric-ca/org4/fabric-ca-server.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/organizations/fabric-ca/org5/fabric-ca-server.db" beforeDir="false" afterPath="$PROJECT_DIR$/organizations/fabric-ca/org5/fabric-ca-server.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/organizations/fabric-ca/org6/fabric-ca-server.db" beforeDir="false" afterPath="$PROJECT_DIR$/organizations/fabric-ca/org6/fabric-ca-server.db" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/organizations/fabric-ca/org7/fabric-ca-server.db" beforeDir="false" afterPath="$PROJECT_DIR$/organizations/fabric-ca/org7/fabric-ca-server.db" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$/login/capstone">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <projects_view>
+          <tree_state>
+            <expand />
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/login/capstone" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 2
+}]]></component>
+  <component name="ProjectId" id="2mdzCbnSBEEul5Lmzomuk44HnJ5" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "last_opened_file_path": "/Users/sangmyeong/blockchain/fabric/battery/fabric-samples/test-network",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="JpashopApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="jpashop.main" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="jpabook.jpashop.JpashopApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="ced76181-f470-45e1-a672-548feaa1363e" name="Changes" comment="" />
+      <created>1727421114428</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1727421114428</updated>
+      <workItem from="1727421115490" duration="941000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

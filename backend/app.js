@@ -1,12 +1,19 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors')
 const { Gateway, Wallets } = require('fabric-network');
 const FabricCAServices = require('fabric-ca-client');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
+
+//cors 설정
+app.use(cors());
+
+app.use(bodyParser.urlencoded({extended:true}));
 app.use(bodyParser.json());
+//app.use(cors({origin: '*',})),bodyParser.json();
 
 async function getCCP(org) {
     const ccpPath = path.resolve(__dirname, '..', 'organizations', 'peerOrganizations', `org${org}.example.com`, `connection-org${org}.json`);
@@ -65,7 +72,7 @@ async function connectToNetwork(org) {
     const gateway = new Gateway();
     await gateway.connect(ccp, {
         wallet,
-        identity: `admin_${org}`,
+        identity: `${org}User`,
         discovery: { enabled: true, asLocalhost: true }
     });
 
@@ -140,6 +147,18 @@ function checkOrg7(req, res, next) {
     next();
 }
 
+// 조직 확인을 위한 미들웨어 (org3, org4, org5, org7만 호출 가능)
+function checkAuthorizedOrg(req, res, next) {
+    const org = req.headers.org;
+    const authorizedOrgs = ['org3', 'org4', 'org5', 'org7'];
+    
+    if (!org || !authorizedOrgs.includes(org)) {
+        return res.status(403).send('Forbidden: Only org3, org4, org5, and org7 can call this API');
+    }
+    req.org = org;
+    next();
+}
+
 app.post('/registerRawMaterial', checkOrg1, async (req, res) => {
     try {
         const { supplierID, name, quantity } = req.body;
@@ -151,6 +170,7 @@ app.post('/registerRawMaterial', checkOrg1, async (req, res) => {
         res.status(200).json({ message: 'Raw material registered successfully', result: result.toString() });
     } catch (error) {
         console.error(`Failed to submit transaction: ${error}`);
+        console.log(req.body);
         res.status(500).json({ error: error.message });
     }
 });
@@ -246,6 +266,21 @@ app.get('/queryBatteryDetails/:batteryID', async (req, res) => {
     }
 });
 
+app.get('queryPerformance/:batteryID', async (req, res) => {
+    const { batteryID } = req.params;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.evaluateTransaction('QueryPerformance', batteryID);
+        await gateway.disconnect();
+
+        res.status(200).json({ batteryDetails: JSON.parse(result.toString()) });
+    } catch (error) {
+        console.error(`Failed to query battery details: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.get('/queryAllBatteries', async (req, res) => {
     try {
         const { contract, gateway } = await connectToNetwork(req.org);
@@ -261,7 +296,7 @@ app.get('/queryAllBatteries', async (req, res) => {
 });
 
 // API to add maintenance logs (org4 only)
-app.post('/addMaintenanceLog', checkOrg(4), async (req, res) => {
+app.post('/addMaintenanceLog', checkOrg4, async (req, res) => {
     const { batteryID, info, maintenanceDate, company } = req.body;
     try {
         const { contract, gateway } = await connectToNetwork('org4');
@@ -290,10 +325,9 @@ app.get('/queryBatterySOCEAndLifeCycle/:batteryID', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-ㄴ
 
 // API to set recycle availability (org5 only)
-app.post('/setRecycleAvailability', checkOrg(5), async (req, res) => {
+app.post('/setRecycleAvailability', checkOrg5, async (req, res) => {
     const { batteryID, recycleAvailability } = req.body;
     try {
         const { contract, gateway } = await connectToNetwork('org5');
@@ -324,7 +358,7 @@ app.get('/queryBatteriesWithRecycleAvailability', async (req, res) => {
 
 
 // API to extract materials from a battery (org6 only)
-app.post('/extractMaterials', checkOrg(6), async (req, res) => {
+app.post('/extractMaterials', checkOrg6, async (req, res) => {
     const { batteryID } = req.body;
     try {
         const { contract, gateway } = await connectToNetwork('org6');
@@ -333,6 +367,23 @@ app.post('/extractMaterials', checkOrg(6), async (req, res) => {
         res.status(200).json({ message: 'Materials extracted successfully', extractedMaterials: result.toString() });
     } catch (error) {
         console.error(`Failed to extract materials: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 성능 정보 조회 API
+app.get('/queryPerformance/:batteryID', checkAuthorizedOrg, async (req, res) => {
+    const { batteryID } = req.params;
+    const org = req.org;
+
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.evaluateTransaction('QueryPerformance', batteryID);
+        await gateway.disconnect();
+
+        res.status(200).json({ performance: JSON.parse(result.toString()) });
+    } catch (error) {
+        console.error(`Failed to query performance: ${error}`);
         res.status(500).json({ error: error.message });
     }
 });

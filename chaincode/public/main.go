@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -124,24 +125,30 @@ func (s *SmartContact) QueryRawMaterial(ctx contractapi.TransactionContextInterf
 // Battery 관련 구조체 및 함수
 type Battery struct {
 	BatteryID           string                       `json:"batteryID"`
+	PassportID          string                       `json:"passportID`
 	RawMaterials        map[string]RawMaterialDetail `json:"rawMaterials"`
 	ManufactureDate     time.Time                    `json:"manufactureDate"`
+	ManufacturerName    string                       `json:"ManufacturerName"`
+	Category            string                       `json:"category"`
+	Weight              float64                      `json:"weight"`
 	Status              string                       `json:"status"`
 	Verified            string                       `'json:"verifed"`
-	Capacity            float64                      `json:"capacity"`
-	SOC                 float64                      `json:"soc"`
-	SOH                 float64                      `json:"soh"`
-	SOCE                float64                      `json:"soce"`
-	TotalLifeCycle      int                          `json:"totalLifeCycle"`
-	RemainingLifeCycle  int                          `json:"remainingLifeCycle"`
-	MaintenanceLogs     []string                     `json:"maintenanceLogs"`
-	AccidentLogs        []string                     `json:"accidentLogs"`
+	Capacity            float64                      `json:"capacity"`           //P
+	Voltage             float64                      `json:"voltage"`            //P
+	SOC                 float64                      `json:"soc"`                //I
+	SOH                 float64                      `json:"soh"`                //I
+	SOCE                float64                      `json:"soce"`               //I
+	TotalLifeCycle      int                          `json:"totalLifeCycle"`     //P
+	RemainingLifeCycle  int                          `json:"remainingLifeCycle"` //I
+	MaintenanceLogs     []string                     `json:"maintenanceLogs"`    //I
+	AccidentLogs        []string                     `json:"accidentLogs"`       //I
 	MaintenanceRequest  bool                         `json:"maintenanceRequest"`
 	AnalysisRequest     bool                         `json:"analysisRequest"`
+	ContainsHazardous   bool                         `json:"containsHazardous"` //P
 	RecycleAvailability bool                         `json:"recycleAvailability"`
 }
 
-func (s *SmartContact) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, capacity float64, totalLifeCycle int, soc, soh float64) (string, error) {
+func (s *SmartContact) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, weight, capacity float64, category string, totalLifeCycle int) (string, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -162,17 +169,21 @@ func (s *SmartContact) CreateBattery(ctx contractapi.TransactionContextInterface
 	}
 
 	batteryID := fmt.Sprintf("BATTERY-%d", time.Now().UnixNano())
+	passportID := uuid.New().String()
 	battery := Battery{
 		BatteryID:          batteryID,
+		PassportID:         passportID,
 		RawMaterials:       rawMaterials,
 		ManufactureDate:    time.Now(),
+		Weight:             weight,
+		Category:           category,
 		Status:             "ORIGINAL",
 		Verified:           "NOT VERIFIED",
 		Capacity:           capacity,
 		TotalLifeCycle:     totalLifeCycle,
 		SOCE:               100,
-		SOC:                soc,
-		SOH:                soh,
+		SOC:                100,
+		SOH:                100,
 		RemainingLifeCycle: totalLifeCycle,
 	}
 
@@ -245,6 +256,47 @@ func (s *SmartContact) QueryBatteryDetails(ctx contractapi.TransactionContextInt
 	}
 
 	return &battery, nil
+}
+
+// getPerformance : 특정 배터리의 성능 정보를 반환하는 함수
+func (s *SmartContact) QueryPerformance(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+
+	// 호출한 조직의 MSPID 확인
+	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get MSPID: %v", err)
+	}
+
+	if clientMSPID != "Org3MSP" && clientMSPID != "Org4MSP" && clientMSPID != "Org5MSP" {
+		return nil, fmt.Errorf("permission denied: only EV ORG or Maintenance ORG can query batteries with maintenance requests")
+	}
+
+	// 배터리 정보 조회
+	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read battery from state: %v", err)
+	}
+	if batteryAsBytes == nil {
+		return nil, fmt.Errorf("battery not found: %s", batteryID)
+	}
+
+	// 배터리 정보 언마샬링
+	var battery Battery
+	err = json.Unmarshal(batteryAsBytes, &battery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal battery: %v", err)
+	}
+
+	// 성능 관련 정보만 반환
+	performanceInfo := map[string]interface{}{
+		"SOCE":               battery.SOCE,               // State of Charge Efficiency
+		"SOC":                battery.SOC,                // State of Charge
+		"SOH":                battery.SOH,                // State of Health
+		"RemainingLifeCycle": battery.RemainingLifeCycle, // 남은 수명
+		"Voltage":            battery.Voltage,
+	}
+
+	return performanceInfo, nil
 }
 
 // 원자재 추출 로직
