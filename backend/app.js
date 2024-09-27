@@ -175,8 +175,30 @@ app.post('/registerRawMaterial', checkOrg1, async (req, res) => {
     }
 });
 
+// 특정 materialID로 원자재를 조회하는 API
+app.get('/queryRawMaterial/:materialID', async (req, res) => {
+    const { materialID } = req.params;
+    const org = req.headers.org || 'org1'; // 헤더에 조직 정보를 받아서 네트워크 연결 (기본값: org1)
+    
+    try {
+        // 네트워크에 연결
+        const { contract, gateway } = await connectToNetwork(org);
+        
+        // 스마트 컨트랙트의 QueryRawMaterial 함수 호출
+        const result = await contract.evaluateTransaction('QueryRawMaterial', materialID);
+        await gateway.disconnect();
+
+        // 성공적으로 조회한 원자재 정보 반환
+        res.status(200).json({ rawMaterial: JSON.parse(result.toString()) });
+    } catch (error) {
+        console.error(`Failed to query raw material: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // API to query new materials (materials with status "NEW")
 app.get('/queryNewMaterials', async (req, res) => {
+    const org = req.headers.org;
     try {
         const { contract, gateway } = await connectToNetwork(req.org);
         const result = await contract.evaluateTransaction('QueryNewMaterials');
@@ -193,6 +215,7 @@ app.get('/queryNewMaterials', async (req, res) => {
 
 // API to query all materials (new and recycled)
 app.get('/queryAllMaterials', async (req, res) => {
+    const org = req.headers.org;
     try {
         const { contract, gateway } = await connectToNetwork(req.org);
         const result = await contract.evaluateTransaction('QueryAllMaterials');
@@ -239,17 +262,21 @@ app.get('/queryExtractedMaterial/:materialID', async (req, res) => {
 
 // 배터리 생성 API (org2만 호출 가능)
 app.post('/createBattery', checkOrg2, async (req, res) => {
-    const { rawMaterialsJSON, capacity, totalLifeCycle, soc, soh } = req.body;
+    const { rawMaterialsJSON, weight, capacity, category, totalLifeCycle } = req.body;
     try {
         const { contract, gateway } = await connectToNetwork('org2', 2);
-        const result = await contract.submitTransaction('CreateBattery', rawMaterialsJSON, capacity.toString(), totalLifeCycle.toString(), soc.toString(), soh.toString());
+        
+        // rawMaterialsJSON과 weight, capacity, category, totalLifeCycle를 포함하여 트랜잭션을 호출
+        const result = await contract.submitTransaction('CreateBattery', rawMaterialsJSON, weight.toString(), capacity.toString(), category, totalLifeCycle.toString());
         await gateway.disconnect();
+
         res.status(200).json({ message: 'Battery created successfully', batteryID: result.toString() });
     } catch (error) {
         console.error(`Failed to create battery: ${error}`);
         res.status(500).json({ error: error.message });
     }
 });
+
 
 app.get('/queryBatteryDetails/:batteryID', async (req, res) => {
     const { batteryID } = req.params;
