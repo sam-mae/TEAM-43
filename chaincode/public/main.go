@@ -818,6 +818,37 @@ func (s *SmartContact) QueryRecycledMaterials(ctx contractapi.TransactionContext
 	return recycledMaterials, nil
 }
 
+// QueryRecycledMaterials : 재활용된 원자재(Status가 "NEW"인 원자재) 목록 조회
+func (s *SmartContact) QueryNewMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+	// 원장에 저장된 모든 원자재 조회
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all raw materials: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var recycledMaterials []RawMaterial
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var material RawMaterial
+		err = json.Unmarshal(queryResponse.Value, &material)
+		if err != nil {
+			return nil, err
+		}
+
+		// 원자재의 상태가 "Recycled"인 경우 필터링하여 목록에 추가
+		if material.Status == "NEW" {
+			recycledMaterials = append(recycledMaterials, material)
+		}
+	}
+
+	return recycledMaterials, nil
+}
+
 // QueryAllMaterials : 신규 원자재와 재활용 원자재를 모두 조회하는 함수
 func (s *SmartContact) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
@@ -929,6 +960,34 @@ func (s *SmartContact) InitMaterialLedger(ctx contractapi.TransactionContextInte
 	}
 
 	return nil
+}
+
+func (s *SmartContact) QueryAllBatteries(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+	// 모든 배터리를 조회하기 위해 상태 범위를 ""에서 ""까지로 설정
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all batteries: %v", err)
+	}
+	defer resultsIterator.Close()
+
+	var batteries []Battery
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var battery Battery
+		err = json.Unmarshal(queryResponse.Value, &battery)
+		if err != nil {
+			return nil, err
+		}
+
+		// Battery 목록에 추가
+		batteries = append(batteries, battery)
+	}
+
+	return batteries, nil
 }
 
 func main() {
