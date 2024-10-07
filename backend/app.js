@@ -63,7 +63,8 @@ async function connectToNetwork(org) {
     const walletPath = path.join(process.cwd(), 'wallet', org);
     const wallet = await Wallets.newFileSystemWallet(walletPath);
 
-    const identity = await wallet.get(`${org}User`);  // 조직에 맞는 신원을 찾음
+    //const identity = await wallet.get(`${org}User`);  // 조직에 맞는 신원을 찾음
+    const identity = await wallet.get(`admin_${org}`);
     if (!identity) {
         throw new Error(`Identity for the user ${org}User does not exist in the wallet`);
     }
@@ -72,7 +73,7 @@ async function connectToNetwork(org) {
     const gateway = new Gateway();
     await gateway.connect(ccp, {
         wallet,
-        identity: `${org}User`,
+        identity: `admin_${org}`,
         discovery: { enabled: true, asLocalhost: true }
     });
 
@@ -83,83 +84,7 @@ async function connectToNetwork(org) {
     return { contract, gateway };
 }
 
-// 조직 확인을 위한 미들웨어
-function checkOrg1(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org1') {
-        return res.status(403).send('Forbidden: Only org1 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg2(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org2') {
-        return res.status(403).send('Forbidden: Only org2 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg3(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org3') {
-        return res.status(403).send('Forbidden: Only org3 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg4(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org4') {
-        return res.status(403).send('Forbidden: Only org4 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg5(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org5') {
-        return res.status(403).send('Forbidden: Only org5 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg6(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org6') {
-        return res.status(403).send('Forbidden: Only org6 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-function checkOrg7(req, res, next) {
-    const org = req.headers.org;
-    if (!org || org !== 'org6') {
-        return res.status(403).send('Forbidden: Only org7 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-// 조직 확인을 위한 미들웨어 (org3, org4, org5, org7만 호출 가능)
-function checkAuthorizedOrg(req, res, next) {
-    const org = req.headers.org;
-    const authorizedOrgs = ['org3', 'org4', 'org5', 'org7'];
-    
-    if (!org || !authorizedOrgs.includes(org)) {
-        return res.status(403).send('Forbidden: Only org3, org4, org5, and org7 can call this API');
-    }
-    req.org = org;
-    next();
-}
-
-app.post('/registerRawMaterial', checkOrg1, async (req, res) => {
+app.post('/registerRawMaterial', async (req, res) => {
     try {
         const { supplierID, name, quantity } = req.body;
         const { contract, gateway } = await connectToNetwork('org1', 1);
@@ -176,7 +101,7 @@ app.post('/registerRawMaterial', checkOrg1, async (req, res) => {
 });
 
 // 특정 materialID로 원자재를 조회하는 API
-app.get('/queryRawMaterial/:materialID', async (req, res) => {
+app.get('/queryMaterial/:materialID', async (req, res) => {
     const { materialID } = req.params;
     const org = req.headers.org || 'org1'; // 헤더에 조직 정보를 받아서 네트워크 연결 (기본값: org1)
     
@@ -185,7 +110,7 @@ app.get('/queryRawMaterial/:materialID', async (req, res) => {
         const { contract, gateway } = await connectToNetwork(org);
         
         // 스마트 컨트랙트의 QueryRawMaterial 함수 호출
-        const result = await contract.evaluateTransaction('QueryRawMaterial', materialID);
+        const result = await contract.evaluateTransaction('QueryMaterial', materialID);
         await gateway.disconnect();
 
         // 성공적으로 조회한 원자재 정보 반환
@@ -200,7 +125,7 @@ app.get('/queryRawMaterial/:materialID', async (req, res) => {
 app.get('/queryNewMaterials', async (req, res) => {
     const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork(req.org);
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryNewMaterials');
         await gateway.disconnect();
 
@@ -216,8 +141,11 @@ app.get('/queryNewMaterials', async (req, res) => {
 // API to query all materials (new and recycled)
 app.get('/queryAllMaterials', async (req, res) => {
     const org = req.headers.org;
+    if (!org) {
+        return res.status(400).send('Organization is not specified');
+    }
     try {
-        const { contract, gateway } = await connectToNetwork(req.org);
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryAllMaterials');
         await gateway.disconnect();
 
@@ -231,8 +159,9 @@ app.get('/queryAllMaterials', async (req, res) => {
 
 // API to query all recycled materials (materials with status "Recycled")
 app.get('/queryRecycledMaterials', async (req, res) => {
+    const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork(req.org);
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryRecycledMaterials');
         await gateway.disconnect();
 
@@ -247,8 +176,9 @@ app.get('/queryRecycledMaterials', async (req, res) => {
 // API to query an extracted material by materialID
 app.get('/queryExtractedMaterial/:materialID', async (req, res) => {
     const { materialID } = req.params;
+    const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork(req.org);
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryExtractedMaterial', materialID);
         await gateway.disconnect();
 
@@ -261,14 +191,19 @@ app.get('/queryExtractedMaterial/:materialID', async (req, res) => {
 });
 
 // 배터리 생성 API (org2만 호출 가능)
-app.post('/createBattery', checkOrg2, async (req, res) => {
-    const { rawMaterialsJSON, weight, capacity, category, totalLifeCycle } = req.body;
+app.post('/createBattery', async (req, res) => {
+    const { rawMaterialsJSON, weight, capacity, voltage, category, totalLifeCycle } = req.body;
+    
     try {
         const { contract, gateway } = await connectToNetwork('org2', 2);
-        
+        console.log(weight.toString())
+    console.log(capacity.toString())
+    console.log(totalLifeCycle.toString())    
         // rawMaterialsJSON과 weight, capacity, category, totalLifeCycle를 포함하여 트랜잭션을 호출
-        const result = await contract.submitTransaction('CreateBattery', rawMaterialsJSON, weight.toString(), capacity.toString(), category, totalLifeCycle.toString());
+        const result = await contract.submitTransaction('CreateBattery', rawMaterialsJSON, weight.toString(), capacity.toString(), voltage.toString(), category, totalLifeCycle.toString());
         await gateway.disconnect();
+
+        console.log(result)
 
         res.status(200).json({ message: 'Battery created successfully', batteryID: result.toString() });
     } catch (error) {
@@ -309,8 +244,9 @@ app.get('queryPerformance/:batteryID', async (req, res) => {
 });
 
 app.get('/queryAllBatteries', async (req, res) => {
+    const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork(req.org);
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryAllBatteries');
         await gateway.disconnect();
 
@@ -323,15 +259,100 @@ app.get('/queryAllBatteries', async (req, res) => {
 });
 
 // API to add maintenance logs (org4 only)
-app.post('/addMaintenanceLog', checkOrg4, async (req, res) => {
-    const { batteryID, info, maintenanceDate, company } = req.body;
+app.post('/addMaintenanceLog', async (req, res) => {
+    const org = req.headers.org;
+
+    // 요청 본문에서 모든 데이터를 추출
+    const maintenanceData = req.body;
+
     try {
-        const { contract, gateway } = await connectToNetwork('org4');
-        const result = await contract.submitTransaction('AddMaintenanceLog', batteryID, info, maintenanceDate, company);
+        const { contract, gateway } = await connectToNetwork(org);
+
+        // maintenanceData를 JSON 문자열로 변환하여 체인코드에 전달
+        const maintenanceDataJSON = JSON.stringify(maintenanceData);
+
+        // 체인코드 함수 호출 (AddMaintenanceLog)
+        const result = await contract.submitTransaction('AddMaintenanceLog', maintenanceDataJSON);
+
         await gateway.disconnect();
+
         res.status(200).json({ message: 'Maintenance log added successfully', result: result.toString() });
     } catch (error) {
         console.error(`Failed to add maintenance log: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/requestMaintenance', async (req, res) => {
+    const { batteryID } = req.body;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('RequestMaintenance', batteryID);
+        await gateway.disconnect();
+
+        const response = {
+            message: "Maintenance request created successfully."
+        };
+
+        if (result.toString()) {
+            response.result = result.toString();  // Only include 'result' if it's not empty
+        }
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error(`Failed to request Maintenance: ${error}`);
+        res.status(403).json({ error: error.message });
+    }
+});
+
+app.post('/requestAnalysis', async (req, res) => {
+    const { batteryID } = req.body;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('RequestAnalysis', batteryID);
+        await gateway.disconnect();
+
+        const response = {
+            message: "Analysis request created successfully."
+        };
+
+        if (result.toString()) {
+            response.result = result.toString();  // Only include 'result' if it's not empty
+        }
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error(`Failed to request Analysis: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/verifyMaterial', async (req, res) => {
+    const { materialID } = req.body;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('VerifyMaterial', materialID);
+        await gateway.disconnect();
+        res.status(200).json({ message: 'Material verified successfully', result: result.toString() });
+    } catch (error) {
+        console.error(`Failed to verify material: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/verifyBattery', async (req, res) => {
+    const { batteryID } = req.body;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('VerifyBattery', batteryID);
+        await gateway.disconnect();
+        res.status(200).json({ message: 'Battery verified successfully', result: result.toString() });
+    } catch (error) {
+        console.error(`Failed to verify battery: ${error}`);
         res.status(500).json({ error: error.message });
     }
 });
@@ -354,10 +375,11 @@ app.get('/queryBatterySOCEAndLifeCycle/:batteryID', async (req, res) => {
 });
 
 // API to set recycle availability (org5 only)
-app.post('/setRecycleAvailability', checkOrg5, async (req, res) => {
+app.post('/setRecycleAvailability', async (req, res) => {
     const { batteryID, recycleAvailability } = req.body;
+    const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork('org5');
+        const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('SetRecycleAvailability', batteryID, recycleAvailability.toString());
         await gateway.disconnect();
         res.status(200).json({ message: 'Recycle availability set successfully', result: result.toString() });
@@ -383,13 +405,44 @@ app.get('/queryBatteriesWithRecycleAvailability', async (req, res) => {
     }
 });
 
-
-// API to extract materials from a battery (org6 only)
-app.post('/extractMaterials', checkOrg6, async (req, res) => {
-    const { batteryID } = req.body;
+app.get('/queryBatteriesWithMaintenanceRequest', async (req, res) => {
+    const org = req.headers.org;
     try {
-        const { contract, gateway } = await connectToNetwork('org6');
-        const result = await contract.submitTransaction('ExtractMaterials', batteryID);
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.evaluateTransaction('QueryBatteriesWithMaintenanceRequest');
+        await gateway.disconnect();
+
+        const QueryBatteriesWithMaintenanceRequest = JSON.parse(result.toString());
+        res.status(200).json(QueryBatteriesWithMaintenanceRequest);
+    } catch (error) {
+        console.error(`Failed to query batteries with recycle availability: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/queryBatteriesWithAnalysisRequest', async (req, res) => {
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.evaluateTransaction('QueryBatteriesWithAnalysisRequest');
+        await gateway.disconnect();
+
+        const QueryBatteriesWithAnalysisRequest = JSON.parse(result.toString());
+        res.status(200).json(QueryBatteriesWithAnalysisRequest);
+    } catch (error) {
+        console.error(`Failed to query batteries with recycle availability: ${error}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/*
+// API to extract materials from a battery (org6 only)
+app.post('/extractMaterials', async (req, res) => {
+    const { batteryID, extractedQuantities } = req.body;
+    const org = req.headers.org;
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('ExtractMaterials', batteryID, extractedQuantities);
         await gateway.disconnect();
         res.status(200).json({ message: 'Materials extracted successfully', extractedMaterials: result.toString() });
     } catch (error) {
@@ -397,11 +450,45 @@ app.post('/extractMaterials', checkOrg6, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+*/
+
+// API to extract materials from a battery (org6 only)
+app.post('/extractMaterials', async (req, res) => {
+    const { batteryID, extractedQuantities } = req.body;
+    const org = req.headers.org;
+
+    try {
+        // Connect to the network
+        const { contract, gateway } = await connectToNetwork(org);
+
+        // Serialize extractedQuantities as a JSON string
+        const extractedQuantitiesStr = JSON.stringify(extractedQuantities);
+
+        // Submit the transaction to extract materials
+        const resultBuffer = await contract.submitTransaction('ExtractMaterials', batteryID, extractedQuantitiesStr);
+
+        // Disconnect the gateway
+        await gateway.disconnect();
+
+        // Parse the result (already in JSON format)
+        const result = JSON.parse(resultBuffer.toString());
+
+        // Send the response back with the result
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`Failed to extract materials: ${error.message}`);
+
+        // Send error response with the message
+        res.status(500).json({ error: `Failed to extract materials: ${error.message}` });
+    }
+});
+
+
 
 // 성능 정보 조회 API
-app.get('/queryPerformance/:batteryID', checkAuthorizedOrg, async (req, res) => {
+app.get('/queryPerformance/:batteryID', async (req, res) => {
     const { batteryID } = req.params;
-    const org = req.org;
+    const org = req.headers.org;
 
     try {
         const { contract, gateway } = await connectToNetwork(org);

@@ -32,7 +32,7 @@ async function main(orgNumber, userName) {
         console.error(`Failed to add identity for org${orgNumber}: ${error}`);
     }
 }
-
+/*
 // 조직별로 사용자 추가
 const orgUsers = [
     { orgNumber: 1, userName: 'org1User' },
@@ -42,6 +42,17 @@ const orgUsers = [
     { orgNumber: 5, userName: 'org5User' },
     { orgNumber: 6, userName: 'org6User' },
     { orgNumber: 7, userName: 'org7User' },
+];
+*/
+// 조직별로 사용자 추가
+const orgUsers = [
+    { orgNumber: 1, userName: 'User1' },
+    { orgNumber: 2, userName: 'User1' },
+    { orgNumber: 3, userName: 'User1' },
+    { orgNumber: 4, userName: 'User1' },
+    { orgNumber: 5, userName: 'User1' },
+    { orgNumber: 6, userName: 'User1' },
+    { orgNumber: 7, userName: 'User1' },
 ];
 
 orgUsers.forEach(({ orgNumber, userName }) => {
