@@ -11,20 +11,20 @@ import (
 )
 
 // 통합 체인코드 구조체 정의
-type SmartContract struct {
+type PublicContract struct {
 	contractapi.Contract
 }
 
 // RawMaterial 관련 구조체 및 함수
 type RawMaterial struct {
-	MaterialID string `json:"materialID"`
-	SupplierID string `json:"supplierID"`
-	Name       string `json:"name"`
-	Quantity   int    `json:"quantity"`
-	Status     string `json:"status"`
-	Available  string `json:"available"`
-	Verified   string `json:"verified"`
-	Timestamp  string `json:"timestamp"`
+	MaterialID   string `json:"materialID"`
+	SupplierID   string `json:"supplierID"`
+	Name         string `json:"name"`
+	Quantity     int    `json:"quantity"`
+	Status       string `json:"status"`
+	Availability string `json:"availability"`
+	Verified     string `json:"verified"`
+	Timestamp    string `json:"timestamp"`
 }
 
 type RawMaterialDetail struct {
@@ -34,7 +34,7 @@ type RawMaterialDetail struct {
 	Status       string `json:"status`
 }
 
-func (s *SmartContract) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, supplierID string, name string, quantity int) (string, error) {
+func (s *PublicContract) RegisterRawMaterial(ctx contractapi.TransactionContextInterface, supplierID string, name string, quantity int) (string, error) {
 
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
 	if err != nil {
@@ -80,14 +80,14 @@ func (s *SmartContract) RegisterRawMaterial(ctx contractapi.TransactionContextIn
 
 	// 신규 원자재 등록
 	rawMaterial := RawMaterial{
-		MaterialID: materialID,
-		SupplierID: supplierID,
-		Name:       name,
-		Verified:   "Not Verified",
-		Quantity:   quantity,
-		Status:     "NEW",
-		Available:  "Available",
-		Timestamp:  time.Now().Format(time.RFC3339),
+		MaterialID:   materialID,
+		SupplierID:   supplierID,
+		Name:         name,
+		Verified:     "NOT VERIFIED",
+		Quantity:     quantity,
+		Status:       "NEW",
+		Availability: "AVAILABLE",
+		Timestamp:    time.Now().Format(time.RFC3339),
 	}
 
 	rawMaterialAsBytes, err := json.Marshal(rawMaterial)
@@ -104,7 +104,7 @@ func (s *SmartContract) RegisterRawMaterial(ctx contractapi.TransactionContextIn
 	return materialID, nil
 }
 
-func (s *SmartContract) VerifyMaterial(ctx contractapi.TransactionContextInterface, materialID string) error {
+func (s *PublicContract) VerifyMaterial(ctx contractapi.TransactionContextInterface, materialID string) error {
 
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
 	if err != nil {
@@ -112,7 +112,7 @@ func (s *SmartContract) VerifyMaterial(ctx contractapi.TransactionContextInterfa
 	}
 
 	if clientMSPID != "Org7MSP" {
-		return fmt.Errorf("permission denied: only RawMaterial Supplier ORG can register raw materials")
+		return fmt.Errorf("permission denied: only Verify ORG can verify material")
 	}
 
 	// materialID로 원자재 조회
@@ -132,7 +132,7 @@ func (s *SmartContract) VerifyMaterial(ctx contractapi.TransactionContextInterfa
 	}
 
 	// VerifiedBy 값을 "Verified"로 변경
-	material.Verified = "Verified"
+	material.Verified = "VERIFIED"
 
 	// 업데이트된 원자재를 다시 마샬링하여 원장에 저장
 	updatedMaterialAsBytes, err := json.Marshal(material)
@@ -149,92 +149,172 @@ func (s *SmartContract) VerifyMaterial(ctx contractapi.TransactionContextInterfa
 }
 
 // InitMaterials : 원장에 신규 원자재와 재활용 원자재를 초기화하는 함수
-func (s *SmartContract) InitMaterials(ctx contractapi.TransactionContextInterface) error {
+func (s *PublicContract) InitMaterials(ctx contractapi.TransactionContextInterface) error {
 	// 신규 원자재
 	newMaterials := []RawMaterial{
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Lithium",
-			Quantity:   100,
-			Status:     "NEW",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "org1",
+			Name:         "Lithium",
+			Quantity:     100,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Cobalt",
-			Quantity:   150,
-			Status:     "NEW",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "org1",
+			Name:         "Cobalt",
+			Quantity:     150,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Manganese",
-			Quantity:   70,
-			Status:     "NEW",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Manganese",
+			Quantity:     70,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Nickel",
-			Quantity:   200,
-			Status:     "NEW",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Nickel",
+			Quantity:     200,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Lithium",
+			Quantity:     500,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Cobalt",
+			Quantity:     350,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Manganese",
+			Quantity:     570,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Nickel",
+			Quantity:     500,
+			Status:       "NEW",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 	}
 
 	// 재활용 원자재
 	recycledMaterials := []RawMaterial{
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Nickel",
-			Quantity:   50,
-			Status:     "Recycled",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Nickel",
+			Quantity:     50,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Manganese",
-			Quantity:   40,
-			Status:     "Recycled",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Manganese",
+			Quantity:     40,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Lithium",
-			Quantity:   30,
-			Status:     "Recycled",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Lithium",
+			Quantity:     30,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 		{
-			MaterialID: fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
-			SupplierID: "SUPPLIER-001",
-			Name:       "Cobalt",
-			Quantity:   30,
-			Status:     "Recycled",
-			Verified:   "Verified",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Cobalt",
+			Quantity:     30,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Nickel",
+			Quantity:     50,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Manganese",
+			Quantity:     40,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Lithium",
+			Quantity:     30,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
+		},
+		{
+			MaterialID:   fmt.Sprintf("MATERIAL-%s", uuid.New().String()),
+			SupplierID:   "SUPPLIER-001",
+			Name:         "Cobalt",
+			Quantity:     30,
+			Status:       "RECYCLED",
+			Verified:     "VERIFIED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		},
 	}
 
@@ -267,7 +347,7 @@ func (s *SmartContract) InitMaterials(ctx contractapi.TransactionContextInterfac
 	return nil
 }
 
-func (s *SmartContract) QueryMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+func (s *PublicContract) QueryMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
 	rawMaterialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read raw material: %v", err)
@@ -314,7 +394,7 @@ type Battery struct {
 	RecyclingRatesByMaterial map[string]float64           `json:"recyclingRatesByMaterial"`
 }
 
-func (s *SmartContract) VerifyBattery(ctx contractapi.TransactionContextInterface, batteryID string) error {
+func (s *PublicContract) VerifyBattery(ctx contractapi.TransactionContextInterface, batteryID string) error {
 
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
 	if err != nil {
@@ -322,7 +402,7 @@ func (s *SmartContract) VerifyBattery(ctx contractapi.TransactionContextInterfac
 	}
 
 	if clientMSPID != "Org7MSP" {
-		return fmt.Errorf("permission denied: only RawMaterial Supplier ORG can register raw materials")
+		return fmt.Errorf("permission denied: only Verify ORG can verify Battery")
 	}
 
 	// batteryID로 배터리 조회
@@ -342,7 +422,7 @@ func (s *SmartContract) VerifyBattery(ctx contractapi.TransactionContextInterfac
 	}
 
 	// Verified 필드를 "Verified"로 변경
-	battery.Verified = "Verified"
+	battery.Verified = "VERIFIED"
 
 	// 업데이트된 배터리를 다시 마샬링하여 원장에 저장
 	updatedBatteryAsBytes, err := json.Marshal(battery)
@@ -359,7 +439,7 @@ func (s *SmartContract) VerifyBattery(ctx contractapi.TransactionContextInterfac
 }
 
 // InitBatteries : 원장에 초기 배터리 데이터를 등록하는 함수
-func (s *SmartContract) InitBatteries(ctx contractapi.TransactionContextInterface) error {
+func (s *PublicContract) InitBatteries(ctx contractapi.TransactionContextInterface) error {
 	// 초기 배터리 데이터 설정
 	initialBatteries := []Battery{
 		{
@@ -370,10 +450,10 @@ func (s *SmartContract) InitBatteries(ctx contractapi.TransactionContextInterfac
 				"material2": {MaterialID: "MATERIAL-002", MaterialType: "Cobalt", Quantity: 100, Status: "NEW"},
 				"material3": {MaterialID: "MATERIAL-003", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
 				"material4": {MaterialID: "MATERIAL-004", MaterialType: "Nickel", Quantity: 60, Status: "NEW"},
-				"material5": {MaterialID: "MATERIAL-005", MaterialType: "Lithium", Quantity: 20, Status: "Recycled"},
-				"material6": {MaterialID: "MATERIAL-006", MaterialType: "Cobalt", Quantity: 40, Status: "Recycled"},
-				"material7": {MaterialID: "MATERIAL-007", MaterialType: "Manganese", Quantity: 30, Status: "Recycled"},
-				"material8": {MaterialID: "MATERIAL-008", MaterialType: "Nickel", Quantity: 20, Status: "Recycled"},
+				"material5": {MaterialID: "MATERIAL-005", MaterialType: "Lithium", Quantity: 20, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-006", MaterialType: "Cobalt", Quantity: 40, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-007", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-008", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
 			},
 			ManufactureDate:     time.Now(),
 			ManufacturerName:    "LG Energy Solution",
@@ -408,10 +488,162 @@ func (s *SmartContract) InitBatteries(ctx contractapi.TransactionContextInterfac
 				"material2": {MaterialID: "MATERIAL-010", MaterialType: "Cobalt", Quantity: 800, Status: "NEW"},
 				"material3": {MaterialID: "MATERIAL-011", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
 				"material4": {MaterialID: "MATERIAL-012", MaterialType: "Nickel", Quantity: 100, Status: "NEW"},
-				"material5": {MaterialID: "MATERIAL-013", MaterialType: "Lithium", Quantity: 10, Status: "Recycled"},
-				"material6": {MaterialID: "MATERIAL-014", MaterialType: "Cobalt", Quantity: 30, Status: "Recycled"},
-				"material7": {MaterialID: "MATERIAL-015", MaterialType: "Manganese", Quantity: 30, Status: "Recycled"},
-				"material8": {MaterialID: "MATERIAL-016", MaterialType: "Nickel", Quantity: 20, Status: "Recycled"},
+				"material5": {MaterialID: "MATERIAL-013", MaterialType: "Lithium", Quantity: 10, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-014", MaterialType: "Cobalt", Quantity: 30, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-015", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-016", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
+			},
+			ManufactureDate:     time.Now(),
+			ManufacturerName:    "LG Energy Solution",
+			Location:            "Pyeongtaek, Korea",
+			Category:            "EV Battery",
+			Weight:              600.0,
+			Status:              "ORIGINAL",
+			Verified:            "NOT VERIFIED",
+			Capacity:            4000.0,
+			Voltage:             400.0,
+			SOC:                 100.0,
+			SOH:                 100.0,
+			SOCE:                100.0,
+			TotalLifeCycle:      1200,
+			RemainingLifeCycle:  1200,
+			MaintenanceLogs:     []string{},
+			AccidentLogs:        []string{},
+			ContainsHazardous:   "Cadmium, Lithium, Nickel, Lead",
+			RecycleAvailability: false,
+			RecyclingRatesByMaterial: map[string]float64{
+				"Lithium":   20,    // 20% (Recycled 20, Total 120)
+				"Cobalt":    28.57, // 28.57% (Recycled 40, Total 140)
+				"Manganese": 27.27, // 27.27% (Recycled 30, Total 110)
+				"Nickel":    25,    // 25% (Recycled 20, Total 80)
+			},
+		},
+		{
+			BatteryID:  fmt.Sprintf("BATTERY-%s", uuid.New().String()),
+			PassportID: uuid.New().String(),
+			RawMaterials: map[string]RawMaterialDetail{
+				"material1": {MaterialID: "MATERIAL-017", MaterialType: "Lithium", Quantity: 90, Status: "NEW"},
+				"material2": {MaterialID: "MATERIAL-018", MaterialType: "Cobalt", Quantity: 800, Status: "NEW"},
+				"material3": {MaterialID: "MATERIAL-019", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
+				"material4": {MaterialID: "MATERIAL-020", MaterialType: "Nickel", Quantity: 100, Status: "NEW"},
+				"material5": {MaterialID: "MATERIAL-021", MaterialType: "Lithium", Quantity: 10, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-022", MaterialType: "Cobalt", Quantity: 30, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-023", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-024", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
+			},
+			ManufactureDate:     time.Now(),
+			ManufacturerName:    "LG Energy Solution",
+			Location:            "Pyeongtaek, Korea",
+			Category:            "EV Battery",
+			Weight:              599.5,
+			Status:              "ORIGINAL",
+			Verified:            "VERIFIED",
+			Capacity:            4000.0,
+			Voltage:             400.0,
+			SOC:                 100.0,
+			SOH:                 100.0,
+			SOCE:                100.0,
+			TotalLifeCycle:      1200,
+			RemainingLifeCycle:  1200,
+			MaintenanceLogs:     []string{},
+			AccidentLogs:        []string{},
+			ContainsHazardous:   "Cadmium, Lithium, Nickel, Lead",
+			RecycleAvailability: false,
+			RecyclingRatesByMaterial: map[string]float64{
+				"Lithium":   20,    // 20% (Recycled 20, Total 120)
+				"Cobalt":    28.57, // 28.57% (Recycled 40, Total 140)
+				"Manganese": 27.27, // 27.27% (Recycled 30, Total 110)
+				"Nickel":    25,    // 25% (Recycled 20, Total 80)
+			},
+		},
+		{
+			BatteryID:  fmt.Sprintf("BATTERY-%s", uuid.New().String()),
+			PassportID: uuid.New().String(),
+			RawMaterials: map[string]RawMaterialDetail{
+				"material1": {MaterialID: "MATERIAL-025", MaterialType: "Lithium", Quantity: 90, Status: "NEW"},
+				"material2": {MaterialID: "MATERIAL-026", MaterialType: "Cobalt", Quantity: 800, Status: "NEW"},
+				"material3": {MaterialID: "MATERIAL-027", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
+				"material4": {MaterialID: "MATERIAL-028", MaterialType: "Nickel", Quantity: 100, Status: "NEW"},
+				"material5": {MaterialID: "MATERIAL-029", MaterialType: "Lithium", Quantity: 10, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-030", MaterialType: "Cobalt", Quantity: 30, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-031", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-032", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
+			},
+			ManufactureDate:     time.Now(),
+			ManufacturerName:    "LG Energy Solution",
+			Location:            "Pyeongtaek, Korea",
+			Category:            "EV Battery",
+			Weight:              600.0,
+			Status:              "ORIGINAL",
+			Verified:            "VERIFIED",
+			Capacity:            4000.0,
+			Voltage:             400.0,
+			SOC:                 100.0,
+			SOH:                 100.0,
+			SOCE:                100.0,
+			TotalLifeCycle:      1200,
+			RemainingLifeCycle:  1200,
+			MaintenanceLogs:     []string{},
+			AccidentLogs:        []string{},
+			ContainsHazardous:   "Cadmium, Lithium, Nickel, Lead",
+			RecycleAvailability: false,
+			RecyclingRatesByMaterial: map[string]float64{
+				"Lithium":   20,    // 20% (Recycled 20, Total 120)
+				"Cobalt":    28.57, // 28.57% (Recycled 40, Total 140)
+				"Manganese": 27.27, // 27.27% (Recycled 30, Total 110)
+				"Nickel":    25,    // 25% (Recycled 20, Total 80)
+			},
+		},
+		{
+			BatteryID:  fmt.Sprintf("BATTERY-%s", uuid.New().String()),
+			PassportID: uuid.New().String(),
+			RawMaterials: map[string]RawMaterialDetail{
+				"material1": {MaterialID: "MATERIAL-033", MaterialType: "Lithium", Quantity: 90, Status: "NEW"},
+				"material2": {MaterialID: "MATERIAL-034", MaterialType: "Cobalt", Quantity: 800, Status: "NEW"},
+				"material3": {MaterialID: "MATERIAL-035", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
+				"material4": {MaterialID: "MATERIAL-036", MaterialType: "Nickel", Quantity: 100, Status: "NEW"},
+				"material5": {MaterialID: "MATERIAL-037", MaterialType: "Lithium", Quantity: 10, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-038", MaterialType: "Cobalt", Quantity: 30, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-039", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-040", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
+			},
+			ManufactureDate:     time.Now(),
+			ManufacturerName:    "LG Energy Solution",
+			Location:            "Pyeongtaek, Korea",
+			Category:            "EV Battery",
+			Weight:              600.0,
+			Status:              "ORIGINAL",
+			Verified:            "VERIFIED",
+			Capacity:            4000.0,
+			Voltage:             800.0,
+			SOC:                 100.0,
+			SOH:                 100.0,
+			SOCE:                100.0,
+			TotalLifeCycle:      1200,
+			RemainingLifeCycle:  1200,
+			MaintenanceLogs:     []string{},
+			AccidentLogs:        []string{},
+			ContainsHazardous:   "Cadmium, Lithium, Nickel, Lead",
+			RecycleAvailability: false,
+			RecyclingRatesByMaterial: map[string]float64{
+				"Lithium":   20,    // 20% (Recycled 20, Total 120)
+				"Cobalt":    28.57, // 28.57% (Recycled 40, Total 140)
+				"Manganese": 27.27, // 27.27% (Recycled 30, Total 110)
+				"Nickel":    25,    // 25% (Recycled 20, Total 80)
+			},
+		},
+		{
+			BatteryID:  fmt.Sprintf("BATTERY-%s", uuid.New().String()),
+			PassportID: uuid.New().String(),
+			RawMaterials: map[string]RawMaterialDetail{
+				"material1": {MaterialID: "MATERIAL-041", MaterialType: "Lithium", Quantity: 90, Status: "NEW"},
+				"material2": {MaterialID: "MATERIAL-042", MaterialType: "Cobalt", Quantity: 800, Status: "NEW"},
+				"material3": {MaterialID: "MATERIAL-043", MaterialType: "Manganese", Quantity: 80, Status: "NEW"},
+				"material4": {MaterialID: "MATERIAL-044", MaterialType: "Nickel", Quantity: 100, Status: "NEW"},
+				"material5": {MaterialID: "MATERIAL-045", MaterialType: "Lithium", Quantity: 10, Status: "RECYCLED"},
+				"material6": {MaterialID: "MATERIAL-046", MaterialType: "Cobalt", Quantity: 30, Status: "RECYCLED"},
+				"material7": {MaterialID: "MATERIAL-047", MaterialType: "Manganese", Quantity: 30, Status: "RECYCLED"},
+				"material8": {MaterialID: "MATERIAL-048", MaterialType: "Nickel", Quantity: 20, Status: "RECYCLED"},
 			},
 			ManufactureDate:     time.Now(),
 			ManufacturerName:    "LG Energy Solution",
@@ -455,8 +687,7 @@ func (s *SmartContract) InitBatteries(ctx contractapi.TransactionContextInterfac
 
 	return nil
 }
-
-func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, weight, capacity, voltage float64, category string, totalLifeCycle int) (string, error) {
+func (s *PublicContract) CreateBattery(ctx contractapi.TransactionContextInterface, rawMaterialsJSON string, weight, capacity, voltage float64, category string, totalLifeCycle int) (string, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -476,6 +707,10 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 		return "", fmt.Errorf("failed to unmarshal raw materials: %v", err)
 	}
 
+	// 재활용 비율 계산을 위한 총량 및 재활용량 추적
+	materialTotals := make(map[string]int)
+	recycledTotals := make(map[string]int)
+
 	// 사용된 원자재의 수량만큼 원장에 저장된 원자재의 수량을 감소
 	for _, materialDetail := range rawMaterials {
 		// 원자재 ID로 원자재 조회
@@ -489,7 +724,14 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 			return "", fmt.Errorf("not enough quantity for material %s (needed: %d, available: %d)", materialDetail.MaterialID, materialDetail.Quantity, rawMaterial.Quantity)
 		}
 
-		// 수량 감소
+		// 원자재의 총량과 재활용량을 계산
+		materialTotals[materialDetail.MaterialType] += materialDetail.Quantity
+
+		if rawMaterial.Status == "RECYCLED" {
+			recycledTotals[materialDetail.MaterialType] += materialDetail.Quantity
+		}
+
+		// 사용된 수량 감소
 		rawMaterial.Quantity -= materialDetail.Quantity
 
 		// 원자재 업데이트
@@ -504,6 +746,7 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 		}
 	}
 
+	// 배터리 정보 생성
 	batteryID := fmt.Sprintf("BATTERY-%s", uuid.New().String())
 	passportID := fmt.Sprintf("PASSPORT-%s", uuid.New().String())
 	battery := Battery{
@@ -512,6 +755,7 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 		RawMaterials:             rawMaterials,
 		ManufacturerName:         "LG Energy Solution",
 		Location:                 "Pyeongtaek, Korea",
+		ContainsHazardous:        "Cadmium, Lithium, Nickel, Lead",
 		ManufactureDate:          time.Now(),
 		Weight:                   weight,
 		Category:                 category,
@@ -524,21 +768,7 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 		SOC:                      100,
 		SOH:                      100,
 		RemainingLifeCycle:       totalLifeCycle,
-		RecyclingRatesByMaterial: make(map[string]float64), // 초기화
-	}
-
-	// 재활용 비율 계산
-	materialTotals := make(map[string]int)
-	recycledTotals := make(map[string]int)
-
-	for _, material := range rawMaterials {
-		// 각 재료별로 전체 수량을 추적
-		materialTotals[material.MaterialType] += material.Quantity
-
-		// 재활용된 수량을 추적
-		if material.Status == "Recycled" {
-			recycledTotals[material.MaterialType] += material.Quantity
-		}
+		RecyclingRatesByMaterial: make(map[string]float64),
 	}
 
 	// 재활용 비율을 계산하여 저장
@@ -555,6 +785,7 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 		battery.RecyclingRatesByMaterial[materialType] = rate
 	}
 
+	// 배터리 상태를 원장에 저장
 	batteryAsBytes, err := json.Marshal(battery)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal battery: %v", err)
@@ -569,7 +800,7 @@ func (s *SmartContract) CreateBattery(ctx contractapi.TransactionContextInterfac
 }
 
 // QueryAllRawMaterials : 원장에 저장된 모든 원자재 조회
-func (s *SmartContract) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+func (s *PublicContract) QueryAllRawMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
 	// 원자재의 범위를 ""에서 ""까지로 설정하여 모든 원자재를 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -597,7 +828,7 @@ func (s *SmartContract) QueryAllRawMaterials(ctx contractapi.TransactionContextI
 	return rawMaterials, nil
 }
 
-func (s *SmartContract) QueryBatteryDetails(ctx contractapi.TransactionContextInterface, batteryID string) (*Battery, error) {
+func (s *PublicContract) QueryBatteryDetails(ctx contractapi.TransactionContextInterface, batteryID string) (*Battery, error) {
 	// 배터리 정보 조회
 	batteryAsBytes, err := ctx.GetStub().GetState(batteryID)
 	if err != nil {
@@ -627,7 +858,7 @@ func (s *SmartContract) QueryBatteryDetails(ctx contractapi.TransactionContextIn
 }
 
 // getPerformance : 특정 배터리의 성능 정보를 반환하는 함수
-func (s *SmartContract) QueryPerformance(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+func (s *PublicContract) QueryPerformance(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -689,7 +920,7 @@ type ExtractMaterialsResponse struct {
 }
 
 // ExtractMaterials : 배터리에서 원자재를 추출하고 배터리의 상태를 "Disassembled"로 설정하며, 추출된 원자재 정보를 반환합니다.
-func (s *SmartContract) ExtractMaterials(ctx contractapi.TransactionContextInterface, batteryID string, extractedQuantitiesJSON string) (*ExtractMaterialsResponse, error) {
+func (s *PublicContract) ExtractMaterials(ctx contractapi.TransactionContextInterface, batteryID string, extractedQuantitiesJSON string) (*ExtractMaterialsResponse, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -733,13 +964,13 @@ func (s *SmartContract) ExtractMaterials(ctx contractapi.TransactionContextInter
 
 		// 새로운 원자재를 생성하여 저장
 		newRawMaterial := RawMaterial{
-			MaterialID: newMaterialID,
-			SupplierID: "Recycle ORG", // 공급자를 Recycle ORG로 설정
-			Name:       materialType,
-			Quantity:   extractedQuantity,
-			Status:     "Recycled",
-			Available:  "Available",
-			Timestamp:  time.Now().Format(time.RFC3339),
+			MaterialID:   newMaterialID,
+			SupplierID:   "Recycle ORG", // 공급자를 Recycle ORG로 설정
+			Name:         materialType,
+			Quantity:     extractedQuantity,
+			Status:       "RECYCLED",
+			Availability: "AVAILABLE",
+			Timestamp:    time.Now().Format(time.RFC3339),
 		}
 
 		// 원장에 새로운 원자재 저장
@@ -757,12 +988,12 @@ func (s *SmartContract) ExtractMaterials(ctx contractapi.TransactionContextInter
 		extractedMaterials[materialType] = map[string]interface{}{
 			"materialID": newMaterialID,
 			"quantity":   extractedQuantity,
-			"status":     "Recycled",
+			"status":     "RECYCLED",
 		}
 	}
 
 	// 배터리 상태를 "Disassembled"로 설정
-	battery.Status = "Disassembled"
+	battery.Status = "DISASSEMBLED"
 
 	// 업데이트된 배터리 정보 저장
 	batteryAsBytes, err := json.Marshal(battery)
@@ -785,7 +1016,7 @@ func (s *SmartContract) ExtractMaterials(ctx contractapi.TransactionContextInter
 }
 
 // RequestMaintenance : 특정 배터리의 유지보수 요청 생성
-func (s *SmartContract) RequestMaintenance(ctx contractapi.TransactionContextInterface, batteryID string) error {
+func (s *PublicContract) RequestMaintenance(ctx contractapi.TransactionContextInterface, batteryID string) error {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -868,7 +1099,7 @@ func (s *SmartContract) AddMaintenanceLog(ctx contractapi.TransactionContextInte
 }
 */
 
-func (s *SmartContract) AddMaintenanceLog(ctx contractapi.TransactionContextInterface, maintenanceDataJSON string) error {
+func (s *PublicContract) AddMaintenanceLog(ctx contractapi.TransactionContextInterface, maintenanceDataJSON string) error {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -908,9 +1139,9 @@ func (s *SmartContract) AddMaintenanceLog(ctx contractapi.TransactionContextInte
 	}
 
 	//로그 생성 및 추가
-	maintenanceLog := fmt.Sprintf("Accident on %s by %s: %s",
+	maintenanceLog := fmt.Sprintf("Maintenance on %s by %s: %s",
 		maintenanceData.MaintenanceDate, maintenanceData.Company, maintenanceData.Info)
-	battery.AccidentLogs = append(battery.AccidentLogs, maintenanceLog)
+	battery.MaintenanceLogs = append(battery.MaintenanceLogs, maintenanceLog)
 
 	// 배터리의 SOC 및 SOH 업데이트
 	battery.SOC = maintenanceData.SOC
@@ -926,7 +1157,7 @@ func (s *SmartContract) AddMaintenanceLog(ctx contractapi.TransactionContextInte
 }
 
 // RequestAnalysis : 특정 배터리에 대한 분석 요청 생성
-func (s *SmartContract) RequestAnalysis(ctx contractapi.TransactionContextInterface, batteryID string) error {
+func (s *PublicContract) RequestAnalysis(ctx contractapi.TransactionContextInterface, batteryID string) error {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -973,7 +1204,7 @@ func (s *SmartContract) RequestAnalysis(ctx contractapi.TransactionContextInterf
 }
 
 // QueryBatteriesWithMaintenanceRequest : 유지보수 요청이 true인 배터리들만 조회
-func (s *SmartContract) QueryBatteriesWithMaintenanceRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *PublicContract) QueryBatteriesWithMaintenanceRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -1024,7 +1255,7 @@ func (s *SmartContract) QueryBatteriesWithMaintenanceRequest(ctx contractapi.Tra
 }
 
 // QueryBatteriesWithAnalysisRequest : 분석 요청이 true인 배터리들만 조회
-func (s *SmartContract) QueryBatteriesWithAnalysisRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *PublicContract) QueryBatteriesWithAnalysisRequest(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -1075,7 +1306,7 @@ func (s *SmartContract) QueryBatteriesWithAnalysisRequest(ctx contractapi.Transa
 }
 
 // QueryBatterySOCEAndLifeCycle : 특정 배터리의 SOCE, Remaining Life Cycle, Capacity 등을 조회하는 함수
-func (s *SmartContract) QueryBatterySOCEAndLifeCycle(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
+func (s *PublicContract) QueryBatterySOCEAndLifeCycle(ctx contractapi.TransactionContextInterface, batteryID string) (map[string]interface{}, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -1124,7 +1355,7 @@ func (s *SmartContract) QueryBatterySOCEAndLifeCycle(ctx contractapi.Transaction
 }
 
 // QueryBatteriesWithRecycleAvailability : 재활용 가능성이 true로 설정된 배터리들만 조회
-func (s *SmartContract) QueryBatteriesWithRecycleAvailability(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *PublicContract) QueryBatteriesWithRecycleAvailability(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -1174,7 +1405,7 @@ func (s *SmartContract) QueryBatteriesWithRecycleAvailability(ctx contractapi.Tr
 	return batteriesWithRecycleAvailability, nil
 }
 
-func (s *SmartContract) AddAccidentLog(ctx contractapi.TransactionContextInterface, batteryID string, incidentDataJSON string) error {
+func (s *PublicContract) AddAccidentLog(ctx contractapi.TransactionContextInterface, batteryID string, incidentDataJSON string) error {
 
 	battery, err := s.QueryBatteryDetails(ctx, batteryID)
 	if err != nil {
@@ -1212,7 +1443,7 @@ func (s *SmartContract) AddAccidentLog(ctx contractapi.TransactionContextInterfa
 }
 
 // SetRecycleAvailability : 특정 배터리의 재활용 가능 여부를 설정하는 함수
-func (s *SmartContract) SetRecycleAvailability(ctx contractapi.TransactionContextInterface, batteryID string, recycleAvailability bool) error {
+func (s *PublicContract) SetRecycleAvailability(ctx contractapi.TransactionContextInterface, batteryID string, recycleAvailability bool) error {
 
 	// 호출한 조직의 MSPID 확인
 	clientMSPID, err := ctx.GetClientIdentity().GetMSPID()
@@ -1262,7 +1493,7 @@ func (s *SmartContract) SetRecycleAvailability(ctx contractapi.TransactionContex
 }
 
 // 저장 함수
-func (s *SmartContract) saveBattery(ctx contractapi.TransactionContextInterface, battery *Battery) error {
+func (s *PublicContract) saveBattery(ctx contractapi.TransactionContextInterface, battery *Battery) error {
 	batteryAsBytes, err := json.Marshal(battery)
 	if err != nil {
 		return fmt.Errorf("failed to marshal battery update: %v", err)
@@ -1272,7 +1503,7 @@ func (s *SmartContract) saveBattery(ctx contractapi.TransactionContextInterface,
 }
 
 // QueryExtractedMaterial : 추출된 원자재를 materialID로 조회
-func (s *SmartContract) QueryExtractedMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
+func (s *PublicContract) QueryExtractedMaterial(ctx contractapi.TransactionContextInterface, materialID string) (*RawMaterial, error) {
 	// materialID로 원자재 조회
 	materialAsBytes, err := ctx.GetStub().GetState(materialID)
 	if err != nil {
@@ -1291,8 +1522,8 @@ func (s *SmartContract) QueryExtractedMaterial(ctx contractapi.TransactionContex
 	return &material, nil
 }
 
-// QueryRecycledMaterials : 재활용된 원자재(Status가 "Recycled"인 원자재) 목록 조회
-func (s *SmartContract) QueryRecycledMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+// QueryRecycledMaterials : 재활용된 원자재(Status가 "RECYCLED"인 원자재) 목록 조회
+func (s *PublicContract) QueryRecycledMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -1313,8 +1544,8 @@ func (s *SmartContract) QueryRecycledMaterials(ctx contractapi.TransactionContex
 			return nil, err
 		}
 
-		// 원자재의 상태가 "Recycled"인 경우 필터링하여 목록에 추가
-		if material.Status == "Recycled" {
+		// 원자재의 상태가 "RECYCLED"인 경우 필터링하여 목록에 추가
+		if material.Status == "RECYCLED" {
 			recycledMaterials = append(recycledMaterials, material)
 		}
 	}
@@ -1323,7 +1554,7 @@ func (s *SmartContract) QueryRecycledMaterials(ctx contractapi.TransactionContex
 }
 
 // QueryRecycledMaterials : 재활용된 원자재(Status가 "NEW"인 원자재) 목록 조회
-func (s *SmartContract) QueryNewMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
+func (s *PublicContract) QueryNewMaterials(ctx contractapi.TransactionContextInterface) ([]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -1344,7 +1575,6 @@ func (s *SmartContract) QueryNewMaterials(ctx contractapi.TransactionContextInte
 			return nil, err
 		}
 
-		// 원자재의 상태가 "Recycled"인 경우 필터링하여 목록에 추가
 		if material.Status == "NEW" {
 			recycledMaterials = append(recycledMaterials, material)
 		}
@@ -1354,7 +1584,7 @@ func (s *SmartContract) QueryNewMaterials(ctx contractapi.TransactionContextInte
 }
 
 // QueryAllMaterials : 신규 원자재와 재활용 원자재를 모두 조회하는 함수
-func (s *SmartContract) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
+func (s *PublicContract) QueryAllMaterials(ctx contractapi.TransactionContextInterface) (map[string][]RawMaterial, error) {
 	// 원장에 저장된 모든 원자재 조회
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -1386,7 +1616,7 @@ func (s *SmartContract) QueryAllMaterials(ctx contractapi.TransactionContextInte
 		}
 
 		// 원자재 상태에 따라 분류
-		if material.Status == "Recycled" {
+		if material.Status == "RECYCLED" {
 			allMaterials["recycledMaterials"] = append(allMaterials["recycledMaterials"], material)
 		} else if material.Status == "NEW" {
 			allMaterials["newMaterials"] = append(allMaterials["newMaterials"], material)
@@ -1396,7 +1626,7 @@ func (s *SmartContract) QueryAllMaterials(ctx contractapi.TransactionContextInte
 	return allMaterials, nil
 }
 
-func (s *SmartContract) QueryAllBatteries(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
+func (s *PublicContract) QueryAllBatteries(ctx contractapi.TransactionContextInterface) ([]Battery, error) {
 	// 모든 배터리를 조회하기 위해 상태 범위를 ""에서 ""까지로 설정
 	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
 	if err != nil {
@@ -1443,7 +1673,7 @@ func (s *SmartContract) QueryAllBatteries(ctx contractapi.TransactionContextInte
 }
 
 func main() {
-	chaincode, err := contractapi.NewChaincode(new(SmartContract))
+	chaincode, err := contractapi.NewChaincode(new(PublicContract))
 	if err != nil {
 		fmt.Printf("Error creating unified chaincode: %v\n", err)
 		return

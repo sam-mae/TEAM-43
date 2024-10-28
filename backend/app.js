@@ -85,6 +85,10 @@ async function connectToNetwork(org) {
 }
 
 app.post('/registerRawMaterial', async (req, res) => {
+    if (req.headers.org !== 'org1') {
+        res.status(403).json({ error: 'permission denied: only Material Supplier ORG can register materials' });
+        return;
+    }
     try {
         const { supplierID, name, quantity } = req.body;
         const { contract, gateway } = await connectToNetwork('org1', 1);
@@ -186,13 +190,24 @@ app.get('/queryExtractedMaterial/:materialID', async (req, res) => {
         res.status(200).json(material);
     } catch (error) {
         console.error(`Failed to query extracted material: ${error}`);
-        res.status(500).json({ error: error.message });
+
+        // 에러 메시지가 'material not found'를 포함하는지 확인하여 404 상태 코드 반환
+        if (error.message.includes('material not found')) {
+            res.status(499).json({ error: 'Material not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
+
 
 // 배터리 생성 API (org2만 호출 가능)
 app.post('/createBattery', async (req, res) => {
     const { rawMaterialsJSON, weight, capacity, voltage, category, totalLifeCycle } = req.body;
+    if (req.headers.org !== 'org2') {
+        res.status(403).json({ error: 'permission denied: only Battery Manufacturer ORG can create batteries' });
+        return;
+    }
     
     try {
         const { contract, gateway } = await connectToNetwork('org2', 2);
@@ -224,7 +239,11 @@ app.get('/queryBatteryDetails/:batteryID', async (req, res) => {
         res.status(200).json({ batteryDetails: JSON.parse(result.toString()) });
     } catch (error) {
         console.error(`Failed to query battery details: ${error}`);
-        res.status(500).json({ error: error.message });
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
@@ -239,7 +258,11 @@ app.get('queryPerformance/:batteryID', async (req, res) => {
         res.status(200).json({ batteryDetails: JSON.parse(result.toString()) });
     } catch (error) {
         console.error(`Failed to query battery details: ${error}`);
-        res.status(500).json({ error: error.message });
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
@@ -258,9 +281,12 @@ app.get('/queryAllBatteries', async (req, res) => {
     }
 });
 
-// API to add maintenance logs (org4 only)
 app.post('/addMaintenanceLog', async (req, res) => {
     const org = req.headers.org;
+    if (org !== 'org4') {
+        res.status(403).json({ error: 'permission denied: only Maintenance ORG can maintenance batteries' });
+        return;
+    }
 
     // 요청 본문에서 모든 데이터를 추출
     const maintenanceData = req.body;
@@ -278,14 +304,23 @@ app.post('/addMaintenanceLog', async (req, res) => {
 
         res.status(200).json({ message: 'Maintenance log added successfully', result: result.toString() });
     } catch (error) {
-        console.error(`Failed to add maintenance log: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to add Maintenance Log: ${error}`);
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 app.post('/requestMaintenance', async (req, res) => {
     const { batteryID } = req.body;
+
     const org = req.headers.org;
+    if (org !== 'org3') {
+        res.status(403).json({ error: 'permission denied: only EV ORG can create request' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('RequestMaintenance', batteryID);
@@ -302,13 +337,23 @@ app.post('/requestMaintenance', async (req, res) => {
         res.status(200).json(response);
     } catch (error) {
         console.error(`Failed to request Maintenance: ${error}`);
-        res.status(403).json({ error: error.message });
+
+        // 에러 메시지에 'battery not found'가 포함되어 있는지 확인하여 상태 코드 499 반환
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 app.post('/requestAnalysis', async (req, res) => {
     const { batteryID } = req.body;
     const org = req.headers.org;
+    if (org !== 'org3') {
+        res.status(403).json({ error: 'permission denied: only EV ORG can create request' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('RequestAnalysis', batteryID);
@@ -325,35 +370,59 @@ app.post('/requestAnalysis', async (req, res) => {
         res.status(200).json(response);
     } catch (error) {
         console.error(`Failed to request Analysis: ${error}`);
-        res.status(500).json({ error: error.message });
+
+        // 에러 메시지에 'battery not found'가 포함되어 있는지 확인하여 상태 코드 499 반환
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 app.post('/verifyMaterial', async (req, res) => {
     const { materialID } = req.body;
     const org = req.headers.org;
+    if (org !== 'org7') {
+        res.status(403).json({ error: 'permission denied: only Verify ORG can verify material' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('VerifyMaterial', materialID);
         await gateway.disconnect();
         res.status(200).json({ message: 'Material verified successfully', result: result.toString() });
     } catch (error) {
-        console.error(`Failed to verify material: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        if (error.message.includes('material not found')) {
+            res.status(499).json({ error: 'material not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 app.post('/verifyBattery', async (req, res) => {
     const { batteryID } = req.body;
     const org = req.headers.org;
+    if (org !== 'org7') {
+        res.status(403).json({ error: 'permission denied: only Verify ORG can verify battery' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('VerifyBattery', batteryID);
         await gateway.disconnect();
         res.status(200).json({ message: 'Battery verified successfully', result: result.toString() });
     } catch (error) {
-        console.error(`Failed to verify battery: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
@@ -361,6 +430,10 @@ app.post('/verifyBattery', async (req, res) => {
 app.get('/queryBatterySOCEAndLifeCycle/:batteryID', async (req, res) => {
     const { batteryID } = req.params;
     const org = req.headers.org;
+    if (org !== 'org5') {
+        res.status(403).json({ error: 'permission denied: only Analysis ORG can access' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryBatterySOCEAndLifeCycle', batteryID);
@@ -369,29 +442,78 @@ app.get('/queryBatterySOCEAndLifeCycle/:batteryID', async (req, res) => {
         const batteryDetails = JSON.parse(result.toString());
         res.status(200).json(batteryDetails);
     } catch (error) {
-        console.error(`Failed to query battery SOCE and life cycle: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
-
+/*
 // API to set recycle availability (org5 only)
 app.post('/setRecycleAvailability', async (req, res) => {
     const { batteryID, recycleAvailability } = req.body;
     const org = req.headers.org;
+    if (org !== 'org5') {
+        res.status(403).json({ error: 'permission denied: only Analysis ORG can access' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.submitTransaction('SetRecycleAvailability', batteryID, recycleAvailability.toString());
         await gateway.disconnect();
         res.status(200).json({ message: 'Recycle availability set successfully', result: result.toString() });
     } catch (error) {
-        console.error(`Failed to set recycle availability: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+*/
+app.post('/setRecycleAvailability', async (req, res) => {
+    const { batteryID, recycleAvailability } = req.body;
+    const org = req.headers.org;
+    if (org !== 'org5') {
+        res.status(403).json({ error: 'permission denied: only Analysis ORG can access' });
+        return;
+    }
+    try {
+        const { contract, gateway } = await connectToNetwork(org);
+        const result = await contract.submitTransaction('SetRecycleAvailability', batteryID, recycleAvailability.toString());
+        await gateway.disconnect();
+
+        // 응답에 recycleAvailability 값에 따라 메시지 설정
+        const recycleMessage = recycleAvailability === "true" ? "Recycle Available" : "Recycle Not Aavailable";
+
+        res.status(200).json({
+            message: 'Recycle availability set successfully',
+            result: recycleMessage
+        });
+    } catch (error) {
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
 // API to query batteries with recycle availability (org3 and org6 only)
 app.get('/queryBatteriesWithRecycleAvailability', async (req, res) => {
     const org = req.headers.org;
+    if (org !== 'org3' || org !== 'org6') {
+        res.status(403).json({ error: 'permission denied: only EV ORG or Recycle ORG can access' });
+        return;
+    }
+
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryBatteriesWithRecycleAvailability');
@@ -407,6 +529,10 @@ app.get('/queryBatteriesWithRecycleAvailability', async (req, res) => {
 
 app.get('/queryBatteriesWithMaintenanceRequest', async (req, res) => {
     const org = req.headers.org;
+    if (org !== 'org3' || org !== 'org4') {
+        res.status(403).json({ error: 'permission denied: only EV ORG or Maintenance ORG can access' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryBatteriesWithMaintenanceRequest');
@@ -422,6 +548,10 @@ app.get('/queryBatteriesWithMaintenanceRequest', async (req, res) => {
 
 app.get('/queryBatteriesWithAnalysisRequest', async (req, res) => {
     const org = req.headers.org;
+    if (org !== 'org3' || org !== 'org5') {
+        res.status(403).json({ error: 'permission denied: only EV ORG or Analysis ORG can access' });
+        return;
+    }
     try {
         const { contract, gateway } = await connectToNetwork(org);
         const result = await contract.evaluateTransaction('QueryBatteriesWithAnalysisRequest');
@@ -456,6 +586,10 @@ app.post('/extractMaterials', async (req, res) => {
 app.post('/extractMaterials', async (req, res) => {
     const { batteryID, extractedQuantities } = req.body;
     const org = req.headers.org;
+    if (org !== 'org6') {
+        res.status(403).json({ error: 'permission denied: only Recycle ORG can access' });
+        return;
+    }
 
     try {
         // Connect to the network
@@ -476,10 +610,14 @@ app.post('/extractMaterials', async (req, res) => {
         // Send the response back with the result
         res.status(200).json(result);
     } catch (error) {
-        console.error(`Failed to extract materials: ${error.message}`);
+        console.error(`Failed to request Maintenance: ${error}`);
 
-        // Send error response with the message
-        res.status(500).json({ error: `Failed to extract materials: ${error.message}` });
+        // 에러 메시지에 'battery not found'가 포함되어 있는지 확인하여 상태 코드 499 반환
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
@@ -497,8 +635,14 @@ app.get('/queryPerformance/:batteryID', async (req, res) => {
 
         res.status(200).json({ performance: JSON.parse(result.toString()) });
     } catch (error) {
-        console.error(`Failed to query performance: ${error}`);
-        res.status(500).json({ error: error.message });
+        console.error(`Failed to request Maintenance: ${error}`);
+
+        // 에러 메시지에 'battery not found'가 포함되어 있는지 확인하여 상태 코드 499 반환
+        if (error.message.includes('battery not found')) {
+            res.status(499).json({ error: 'battery not found' });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
     }
 });
 
