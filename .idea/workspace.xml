@@ -5,13 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ced76181-f470-45e1-a672-548feaa1363e" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BEINUS" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/components/organisms/BatteryRegisterModal.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/components/organisms/BatteryRegisterModal.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/pages/SearchPage.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/pages/SearchPage.jsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/BEINUS/beinus/src/services/additional_api.js" beforeDir="false" afterPath="$PROJECT_DIR$/BEINUS/beinus/src/services/additional_api.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chaincode/public/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/chaincode/public/main.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/login/capstone" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/login/capstone/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/login/capstone/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone/gradlew" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/config/CorsMvcConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/config/CorsMvcConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/domain/UserRole.java" beforeDir="false" afterPath="$PROJECT_DIR$/login/capstone/src/main/java/jpabook/jpashop/domain/UserRole.java" afterDir="false" />
@@ -95,7 +95,7 @@
       <workItem from="1730031251830" duration="876000" />
       <workItem from="1730091587165" duration="615000" />
       <workItem from="1730114788511" duration="215000" />
-      <workItem from="1730115007543" duration="286000" />
+      <workItem from="1730115007543" duration="937000" />
     </task>
     <servers />
   </component>
