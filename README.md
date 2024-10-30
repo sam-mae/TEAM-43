@@ -15,7 +15,7 @@
 
 |  **팀원**  | **역할 소개**|
 | :------: |  ------ |
-| [<img src="https://github.com/sam-mae.png" height=100 width=100>](https://github.com/sam-mae) <br> **[이상명](https://github.com/sam-mae)** | - 블록체인 네트워크 구축 (Hyperledger Fabric)   <br> - 채널 설계 (Organization, Channel) <br> - 체인코드 개발 (Chaincode)|
+| [<img src="https://github.com/sam-mae.png" height=100 width=100>](https://github.com/sam-mae) <br> **[이상명](https://github.com/sam-mae)** | - 블록체인 네트워크 구축 (Hyperledger Fabric)   <br> - 채널 설계 (Organization, Channel) <br> - 체인코드 개발 (Chaincode)   <br> - Fabric Gateway 구현|
 | [<img src="https://github.com/insang01.png" height=100 width=100> ](https://github.com/insang01) <br> **[황인준](https://github.com/insang01)** | - Backend 서버 개발 (Spring Boot) <br> - Rest API 설계 및 구축(Spring JPA) 개발 <br> - DataBase 설계 (MySQL)|
 | [<img src="https://github.com/0BackFlash0.png" height=100 width=100>](https://github.com/0BackFlash0) <br> **[김병진](https://github.com/0BackFlash0)** |  - UI 설계 및 디자인 <br> - 웹 퍼블리싱, 기능 구현 (React.js) |
 
@@ -122,8 +122,31 @@ export FABRIC_CFG_PATH=$PWD/../config/
 ```bash
 # Start the network and deploy
 ./network.sh up -ca
+
+# Create the material-supply-channel and deploy chaincode
+./network.sh createChannel -c material-supply-channel
+./network.sh deployCC -ccn material -ccp ./chaincode/material-supply/ -ccl go -c material-supply-channel
+
+# Create the battery-ev-channel and deploy chaincode
+./network.sh createChannel -c battery-ev-channel
+./network.sh deployCC2 -ccn batteryev -ccp ./chaincode/battery-ev/ -ccl go -c battery-ev-channel
+
+# Create the battery-update-channel and deploy chaincode
+./network.sh createChannel -c battery-update-channel
+./network.sh deployCC3 -ccn batteryupdate -ccp ./chaincode/battery-update/ -ccl go -c battery-update-channel
+
+# Create the recycled-material-extraction-channel and deploy chaincode
+./network.sh createChannel -c recycled-material-extraction-channel
+./network.sh deployCC4 -ccn recycledmaterialextraction -ccp ./chaincode/recycled-material-extraction/ -ccl go -c recycled-material-extraction-channel
+
+# Create the recycled-material-supply-channel and deploy chaincode
+./network.sh createChannel -c recycled-material-supply-channel
+./network.sh deployCC5 -ccn recycledmaterialsupply -ccp ./chaincode/recycled-material-supply/ -ccl go -c recycled-material-supply-channel
+
+# Create the public-channel and deploy chaincode
 ./network.sh createChannel -c public-channel
 ./network.sh deployCCPublic -ccn public -ccp ./chaincode/public -ccl go -c public-channel
+
 
 # Additional PATH configuration
 export PATH=$PATH:$HOME/go/src/<your_github_userid>/<your folder>/fabric-samples/bin
@@ -132,6 +155,8 @@ export PATH=$PATH:$HOME/go/src/<your_github_userid>/<your folder>/fabric-samples
 ### 5. 각 조직의 환경 변수 설정 및 인증서 발급
 
 ```bash
+#Example Ports: org1 = 7051, org2 = 8051, org3 = 6051, org4 = 5051, org5 = 4051, org6 = 3051, org7 = 2051
+
 # Example: Set environment variables for org1 and register the user
 export FABRIC_CA_CLIENT_HOME=${PWD}/organizations/peerOrganizations/org1.example.com/
 export CORE_PEER_TLS_ENABLED=true
@@ -143,6 +168,8 @@ export CORE_PEER_ADDRESS=localhost:7051
 # Register and issue a certificate for org1 user
 fabric-ca-client register --caname ca-org1 --id.name org1User --id.secret org1UserPW --id.type client --tls.certfiles ${PWD}/organizations/fabric-ca/org1/ca-cert.pem
 fabric-ca-client enroll -u https://org1User:org1UserPW@localhost:7054 --caname ca-org1 -M ${PWD}/organizations/peerOrganizations/org1.example.com/users/org1User@org1.example.com/msp --tls.certfiles ${PWD}/organizations/fabric-ca/org1/ca-cert.pem
+
+# Apply the same method for org2 through org7
 
 ```
 
