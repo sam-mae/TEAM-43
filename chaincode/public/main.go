@@ -968,6 +968,7 @@ func (s *PublicContract) ExtractMaterials(ctx contractapi.TransactionContextInte
 			SupplierID:   "Recycle ORG", // 공급자를 Recycle ORG로 설정
 			Name:         materialType,
 			Quantity:     extractedQuantity,
+			Verified:     "NOT VERIFIED",
 			Status:       "RECYCLED",
 			Availability: "AVAILABLE",
 			Timestamp:    time.Now().Format(time.RFC3339),

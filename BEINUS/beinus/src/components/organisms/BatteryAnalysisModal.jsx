@@ -111,7 +111,7 @@ const BatteryAnalysisModal = ({
         })
             .then((response) => {
                 showCaution(
-                    `재활용 가능성 평가를 완료했습니다. \n ID: ${response.battery_id} \n 가능여부: ${response.data.result}`,
+                    `재활용 가능성 평가를 완료했습니다. \n 가능여부: ${response.data.result}`,
                     handle_close
                 );
             })
