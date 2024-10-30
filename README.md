@@ -103,10 +103,10 @@ curl -sSLO https://raw.githubusercontent.com/hyperledger/fabric/main/scripts/ins
 ### 2. Fabric Repository Clone
 
 ```bash
-# Clone fabric2 inside of Fabric Sample 
+# Clone TEAM-43 inside of Fabric Sample 
 cd fabric-samples
-git clone "https://github.com/sam-mae/fabric2.git"
-cd ./fabric2
+git clone https://github.com/sam-mae/TEAM-43.git
+cd ./TEAM-43
 ```
 
 ### 3. 환경 변수 설정
